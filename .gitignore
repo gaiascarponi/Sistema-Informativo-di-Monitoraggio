@@ -1,0 +1,22 @@
+# R / RStudio
+.Rhistory
+.RData
+.Ruserdata
+
+# renv
+renv/library/
+renv/python/
+
+# macOS
+.DS_Store
+
+# Data (real data must NOT be committed)
+data/*.csv
+data/*.xlsx
+data/*.xls
+
+# Credentials / local config
+.Renviron
+config.yml
+
+.Rproj.user

@@ -31,7 +31,7 @@ Su macOS è consigliabile evitare di clonare il repository all’interno di `Doc
 
 ```bash
 cd ~/Projects
-git clone git@github.com:<ORG_OR_USER>/Monitoraggio-PNRR.git
+git clone git@github.com:gaiascarponi/Monitoraggio-PNRR.git
 cd Monitoraggio-PNRR
 ```
 

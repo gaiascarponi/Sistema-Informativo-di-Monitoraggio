@@ -39,7 +39,7 @@ cd Monitoraggio-PNRR
 
 ```bash
 cd ~/Projects
-git clone https://github.com/<ORG_OR_USER>/Monitoraggio-PNRR.git
+git clone https://github.com/gaiascarponi/Monitoraggio-PNRR.git
 cd Monitoraggio-PNRR
 ```
 

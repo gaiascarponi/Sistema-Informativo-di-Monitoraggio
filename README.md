@@ -43,7 +43,6 @@ git clone https://github.com/gaiascarponi/Monitoraggio-PNRR.git
 cd Monitoraggio-PNRR
 ```
 
-**Sostituire <ORG_OR_USER>** con l’organizzazione o lo username GitHub corretto.
 
 ---
 

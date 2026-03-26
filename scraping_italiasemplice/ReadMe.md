@@ -9,9 +9,9 @@
 
 
 ## Descrizione
-Questa pipeline è stata sviluppata per l'estrazione di dati dal portale istituzionale [Italia Semplice](https://www.italiasemplice.gov.it). 
+Questa pipeline è stata sviluppata per l'estrazione di dati (procedure e relativi interventi di semplificazione) dal portale istituzionale [Italia Semplice](https://www.italiasemplice.gov.it). 
 
-Viene gestita la navigazione dinamica tra le procedure, gestito il caricamento asincrono dei contenuti ed estratti i dettagli degli interventi organizzandoli in un formato strutturato (CSV/Excel) pronto per l'analisi statistica o l'integrazione in database.
+Viene gestita la navigazione dinamica tra le procedure, il caricamento asincrono dei contenuti ed estratti i dettagli degli interventi organizzandoli in un formato strutturato (CSV/Excel) pronto per l'analisi statistica o l'integrazione in database.
 
 ---
 
@@ -69,7 +69,7 @@ Il sistema fornisce feedback in tempo reale tramite:
 
 # Scelte Progettuali e Problem Solving
 
-Per rendere la pipeline professionale e resiliente, sono state implementate le seguenti soluzioni:
+Per rendere la pipeline professionale e robusta, sono state implementate le seguenti soluzioni:
 
 - **Stabilità**: Il salvataggio è incrementale. Se lo script si ferma, i dati scaricati fino a quel momento sono già salvati nel CSV.
 

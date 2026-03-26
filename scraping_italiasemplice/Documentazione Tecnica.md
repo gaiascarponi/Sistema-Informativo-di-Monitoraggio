@@ -7,7 +7,7 @@
 ---
 
 ## 1. Descrizione del Progetto
-L'obiettivo di questa pipeline è l'estrazione sistematica e strutturata dei dati relativi agli interventi di semplificazione amministrativa dal portale Italia Semplice. Il progetto adotta un'architettura modulare che separa nettamente la logica di navigazione (motore), la configurazione dei parametri e le regole di estrazione (parsing). Questa scelta progettuale garantisce aggiornabilità: eventuali aggiornamenti futuri alla struttura del sito web richiedono modifiche mirate solo ai moduli di parsing, preservando l'integrità e la stabilità dell'intera automazione.
+L'obiettivo di questa pipeline è l'estrazione sistematica e strutturata dei dati relativi agli interventi di semplificazione dal portale Italia Semplice. Si adotta un'architettura modulare che separa nettamente la logica di navigazione (motore), la configurazione dei parametri e le regole di estrazione (parsing). Questa scelta progettuale garantisce aggiornabilità: eventuali aggiornamenti futuri alla struttura del sito web richiedono modifiche mirate solo ai moduli di parsing, preservando l'integrità e la stabilità dell'intera automazione.
 
 ---
 

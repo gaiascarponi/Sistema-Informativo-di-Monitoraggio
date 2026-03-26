@@ -19,7 +19,7 @@ Viene gestita la navigazione dinamica tra le procedure, gestito il caricamento a
 ```text
 scraping_italiasemplice/
 ├── main.py                # Coordina il flusso e il salvataggio dati
-├── config.py              # Configurazioni generali (ID range, percorsi, cartelle)
+├── config.py              # Configurazioni generali 
 ├── scraper_engine.py      # Gestione del driver Selenium (Logica Anti-bot)
 ├── parser_utils.py        # Logica di estrazione (Regex e selettori XPATH)
 ├── requirements.txt       # Elenco delle dipendenze Python

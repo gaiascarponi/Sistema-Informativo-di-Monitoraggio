@@ -217,7 +217,7 @@ parse_dataset_table <- function(tbl, page_index) {
     node_attr_safe("href") %>%
     abs_url()
   
-  pdf_url <- html_element(tbl, ".dati-rdf a") %>%
+  rdf_url <- html_element(tbl, ".dati-rdf a") %>%
     node_attr_safe("href") %>%
     abs_url()
   
@@ -239,7 +239,7 @@ parse_dataset_table <- function(tbl, page_index) {
     descrizione = descrizione,
     versione = versione,
     csv_url = csv_url,
-    pdf_url = pdf_url,
+    rdf_url = rdf_url,
     metadati_enti_url = metadati_enti_url,
     metadati_variabili_url = metadati_variabili_url,
     detail_url = detail_url
@@ -394,7 +394,7 @@ clean_final_dataset <- function(df) {
       descrizione,
       versione,
       csv_url,
-      pdf_url,
+      rdf_url,
       metadati_enti_url,
       metadati_variabili_url,
       detail_url
@@ -428,7 +428,7 @@ quality_summary <- open_data_final %>%
     n_descrizione = sum(!is.na(descrizione) & descrizione != ""),
     n_versione = sum(!is.na(versione) & versione != ""),
     n_csv_url = sum(!is.na(csv_url) & csv_url != ""),
-    n_pdf_url = sum(!is.na(pdf_url) & pdf_url != ""),
+    n_rdf_url = sum(!is.na(rdf_url) & rdf_url != ""),
     n_metadati_enti_url = sum(!is.na(metadati_enti_url) & metadati_enti_url != ""),
     n_metadati_variabili_url = sum(!is.na(metadati_variabili_url) & metadati_variabili_url != "")
   )

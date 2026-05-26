@@ -119,3 +119,6 @@ write_styled_xlsx <- function(df,
 
 # ---- Esempio 1: se hai già un data frame in R ----
 write_styled_xlsx(det_proc, "dati_puliti.xlsx", sheet_name = "Procedure")
+
+
+# ciaoo

@@ -1,0 +1,1 @@
+Questa cartella serve per il salvataggio temporaneo dei files. 

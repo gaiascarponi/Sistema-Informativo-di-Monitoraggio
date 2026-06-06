@@ -20,3 +20,6 @@ data/*.xls
 config.yml
 
 .Rproj.user
+
+# Temporary files
+07_Temp/

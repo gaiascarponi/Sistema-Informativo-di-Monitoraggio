@@ -1,0 +1,332 @@
+ANNO;CODI_CONTRATTO;CODI_MACROCATEGORIA;CODI_FONDO;DESC_FONDO;CODI_NATURA;DESC_NATURA;CODI_TIPO_VOCE_SPESA;TIPO_VOCE_SPESA
+2023;AFAM;AT;3;Fondo dell'istituzione scolastica;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;AFAM;AT;3;Fondo dell'istituzione scolastica;9;Risorse variabili;F;FINANZIA
+2023;AFAM;AT;3;Fondo dell'istituzione scolastica;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;AFAM;AT;3;Fondo dell'istituzione scolastica;81;Decurtazioni;F;FINANZIA
+2023;AGFI;ND;52;Fondo risorse decentrate;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;AGFI;ND;52;Fondo risorse decentrate;9;Risorse variabili;F;FINANZIA
+2023;AGFI;ND;52;Fondo risorse decentrate;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;AGFI;ND;52;Fondo risorse decentrate;81;Decurtazioni;F;FINANZIA
+2023;AGFI;ND;53;Posizioni organizzative (bilancio);2;Risorse a carico del bilancio;F;FINANZIA
+2023;AGFI;ND;53;Posizioni organizzative (bilancio);61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;AGFI;ND;78;Straordinario (bilancio);2;Risorse a carico del bilancio;F;FINANZIA
+2023;AGFI;ND;78;Straordinario (bilancio);61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;AGFI;ND;78;Straordinario (bilancio);81;Decurtazioni;F;FINANZIA
+2023;AGFI;1F;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;AGFI;1F;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;AGFI;1F;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;AGFI;1F;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;AGFI;2F;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;AGFI;2F;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;AGFI;2F;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;AGFI;2F;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;AGID;ND;30;Poste temporaneamente allocate all'esterno del Fondo;2;Risorse a carico del bilancio;F;FINANZIA
+2023;AGID;ND;30;Poste temporaneamente allocate all'esterno del Fondo;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;AGID;ND;52;Fondo risorse decentrate;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;AGID;ND;52;Fondo risorse decentrate;9;Risorse variabili;F;FINANZIA
+2023;AGID;ND;52;Fondo risorse decentrate;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;AGID;ND;52;Fondo risorse decentrate;81;Decurtazioni;F;FINANZIA
+2023;AGID;ND;78;Straordinario (bilancio);2;Risorse a carico del bilancio;F;FINANZIA
+2023;AGID;ND;78;Straordinario (bilancio);61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;AGID;ND;78;Straordinario (bilancio);81;Decurtazioni;F;FINANZIA
+2023;AGID;1F;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;AGID;1F;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;AGID;1F;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;AGID;1F;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;AGID;2F;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;AGID;2F;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;AGID;2F;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;AGID;2F;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;ASSI;ND;23;Risorse attività prestazioni committenti esterni;9;Risorse variabili;F;FINANZIA
+2023;ASSI;ND;23;Risorse attività prestazioni committenti esterni;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ASSI;ND;26;Risorse per il trattamento accessorio;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;ASSI;ND;26;Risorse per il trattamento accessorio;9;Risorse variabili;F;FINANZIA
+2023;ASSI;ND;26;Risorse per il trattamento accessorio;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ASSI;ND;26;Risorse per il trattamento accessorio;81;Decurtazioni;F;FINANZIA
+2023;ASSI;ND;60;Fondo per le progressioni economiche di livello;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;ASSI;ND;60;Fondo per le progressioni economiche di livello;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ASSI;ND;60;Fondo per le progressioni economiche di livello;81;Decurtazioni;F;FINANZIA
+2023;ASSI;ND;61;Poste temporaneamente allocate all'esterno del Fondo risorse accessorie;10;Risorse temporaneamente allocate all'esterno del Fondo;F;FINANZIA
+2023;ASSI;ND;61;Poste temporaneamente allocate all'esterno del Fondo risorse accessorie;11;Destinazioni temp allocate all'esterno del Fondo effettivamente erogate;U;UTILIZZO
+2023;ASSI;ND;62;Poste temporaneamente allocate all'esterno del Fondo art. 90;10;Risorse temporaneamente allocate all'esterno del Fondo;F;FINANZIA
+2023;ASSI;ND;62;Poste temporaneamente allocate all'esterno del Fondo art. 90;11;Destinazioni temp allocate all'esterno del Fondo effettivamente erogate;U;UTILIZZO
+2023;ASSI;RT;7;Risorse trattamento accessorio e valorizzazione profess.le;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;ASSI;RT;7;Risorse trattamento accessorio e valorizzazione profess.le;9;Risorse variabili;F;FINANZIA
+2023;ASSI;RT;7;Risorse trattamento accessorio e valorizzazione profess.le;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ASSI;RT;7;Risorse trattamento accessorio e valorizzazione profess.le;81;Decurtazioni;F;FINANZIA
+2023;ASSI;RT;23;Risorse attività prestazioni committenti esterni;9;Risorse variabili;F;FINANZIA
+2023;ASSI;RT;23;Risorse attività prestazioni committenti esterni;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ASSI;1F;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;ASSI;1F;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;ASSI;1F;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ASSI;1F;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;ASSI;2F;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;ASSI;2F;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;ASSI;2F;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ASSI;2F;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;CDIP;CD;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;CDIP;CD;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;CDIP;CD;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;CDIP;CD;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;CNEL;ND;52;Fondo risorse decentrate;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;CNEL;ND;52;Fondo risorse decentrate;9;Risorse variabili;F;FINANZIA
+2023;CNEL;ND;52;Fondo risorse decentrate;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;CNEL;ND;52;Fondo risorse decentrate;81;Decurtazioni;F;FINANZIA
+2023;CNEL;ND;78;Straordinario (bilancio);2;Risorse a carico del bilancio;F;FINANZIA
+2023;CNEL;ND;78;Straordinario (bilancio);61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;CNEL;ND;78;Straordinario (bilancio);81;Decurtazioni;F;FINANZIA
+2023;CNEL;1F;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;CNEL;1F;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;CNEL;1F;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;CNEL;1F;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;CNEL;2F;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;CNEL;2F;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;CNEL;2F;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;CNEL;2F;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;CPRE;CP;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;CPRE;CP;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;CPRE;CP;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;CPRE;CP;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;ENAC;ND;52;Fondo risorse decentrate;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;ENAC;ND;52;Fondo risorse decentrate;9;Risorse variabili;F;FINANZIA
+2023;ENAC;ND;52;Fondo risorse decentrate;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ENAC;ND;52;Fondo risorse decentrate;81;Decurtazioni;F;FINANZIA
+2023;ENAC;ND;78;Straordinario (bilancio);2;Risorse a carico del bilancio;F;FINANZIA
+2023;ENAC;ND;78;Straordinario (bilancio);61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ENAC;ND;78;Straordinario (bilancio);81;Decurtazioni;F;FINANZIA
+2023;ENAC;NF;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;ENAC;NF;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;ENAC;NF;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ENAC;NF;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;ENAC;R1;27;Risorse politiche di sviluppo professionisti I qualifica;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;ENAC;R1;27;Risorse politiche di sviluppo professionisti I qualifica;9;Risorse variabili;F;FINANZIA
+2023;ENAC;R1;27;Risorse politiche di sviluppo professionisti I qualifica;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ENAC;R1;27;Risorse politiche di sviluppo professionisti I qualifica;81;Decurtazioni;F;FINANZIA
+2023;ENAC;R2;35;Risorse politiche di sviluppo professionisti II qualifica;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;ENAC;R2;35;Risorse politiche di sviluppo professionisti II qualifica;9;Risorse variabili;F;FINANZIA
+2023;ENAC;R2;35;Risorse politiche di sviluppo professionisti II qualifica;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ENAC;R2;35;Risorse politiche di sviluppo professionisti II qualifica;81;Decurtazioni;F;FINANZIA
+2023;EPNE;ME;45;Fondo Area Medica;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;EPNE;ME;45;Fondo Area Medica;9;Risorse variabili;F;FINANZIA
+2023;EPNE;ME;45;Fondo Area Medica;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;EPNE;ME;45;Fondo Area Medica;81;Decurtazioni;F;FINANZIA
+2023;EPNE;ND;52;Fondo risorse decentrate;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;EPNE;ND;52;Fondo risorse decentrate;9;Risorse variabili;F;FINANZIA
+2023;EPNE;ND;52;Fondo risorse decentrate;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;EPNE;ND;52;Fondo risorse decentrate;81;Decurtazioni;F;FINANZIA
+2023;EPNE;ND;78;Straordinario (bilancio);2;Risorse a carico del bilancio;F;FINANZIA
+2023;EPNE;ND;78;Straordinario (bilancio);61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;EPNE;ND;78;Straordinario (bilancio);81;Decurtazioni;F;FINANZIA
+2023;EPNE;PR;28;Fondo Area dei Professionisti;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;EPNE;PR;28;Fondo Area dei Professionisti;9;Risorse variabili;F;FINANZIA
+2023;EPNE;PR;28;Fondo Area dei Professionisti;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;EPNE;PR;28;Fondo Area dei Professionisti;81;Decurtazioni;F;FINANZIA
+2023;EPNE;1F;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;EPNE;1F;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;EPNE;1F;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;EPNE;1F;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;EPNE;2F;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;EPNE;2F;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;EPNE;2F;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;EPNE;2F;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;ERIC;ND;23;Risorse attività prestazioni committenti esterni;9;Risorse variabili;F;FINANZIA
+2023;ERIC;ND;23;Risorse attività prestazioni committenti esterni;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ERIC;ND;26;Risorse per il trattamento accessorio;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;ERIC;ND;26;Risorse per il trattamento accessorio;9;Risorse variabili;F;FINANZIA
+2023;ERIC;ND;26;Risorse per il trattamento accessorio;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ERIC;ND;26;Risorse per il trattamento accessorio;81;Decurtazioni;F;FINANZIA
+2023;ERIC;ND;60;Fondo per le progressioni economiche di livello;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;ERIC;ND;60;Fondo per le progressioni economiche di livello;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ERIC;ND;60;Fondo per le progressioni economiche di livello;81;Decurtazioni;F;FINANZIA
+2023;ERIC;ND;61;Poste temporaneamente allocate all'esterno del Fondo risorse accessorie;10;Risorse temporaneamente allocate all'esterno del Fondo;F;FINANZIA
+2023;ERIC;ND;61;Poste temporaneamente allocate all'esterno del Fondo risorse accessorie;11;Destinazioni temp allocate all'esterno del Fondo effettivamente erogate;U;UTILIZZO
+2023;ERIC;ND;62;Poste temporaneamente allocate all'esterno del Fondo art. 90;10;Risorse temporaneamente allocate all'esterno del Fondo;F;FINANZIA
+2023;ERIC;ND;62;Poste temporaneamente allocate all'esterno del Fondo art. 90;11;Destinazioni temp allocate all'esterno del Fondo effettivamente erogate;U;UTILIZZO
+2023;ERIC;RT;7;Risorse trattamento accessorio e valorizzazione profess.le;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;ERIC;RT;7;Risorse trattamento accessorio e valorizzazione profess.le;9;Risorse variabili;F;FINANZIA
+2023;ERIC;RT;7;Risorse trattamento accessorio e valorizzazione profess.le;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ERIC;RT;7;Risorse trattamento accessorio e valorizzazione profess.le;81;Decurtazioni;F;FINANZIA
+2023;ERIC;RT;23;Risorse attività prestazioni committenti esterni;9;Risorse variabili;F;FINANZIA
+2023;ERIC;RT;23;Risorse attività prestazioni committenti esterni;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ERIC;1F;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;ERIC;1F;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;ERIC;1F;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ERIC;1F;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;ERIC;2F;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;ERIC;2F;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;ERIC;2F;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;ERIC;2F;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;MNST;MM;79;Fondo risorse decentrate dei dirigenti sanitari;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;MNST;MM;79;Fondo risorse decentrate dei dirigenti sanitari;9;Risorse variabili;F;FINANZIA
+2023;MNST;MM;79;Fondo risorse decentrate dei dirigenti sanitari;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;MNST;MM;79;Fondo risorse decentrate dei dirigenti sanitari;81;Decurtazioni;F;FINANZIA
+2023;MNST;ND;52;Fondo risorse decentrate;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;MNST;ND;52;Fondo risorse decentrate;9;Risorse variabili;F;FINANZIA
+2023;MNST;ND;52;Fondo risorse decentrate;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;MNST;ND;52;Fondo risorse decentrate;81;Decurtazioni;F;FINANZIA
+2023;MNST;ND;78;Straordinario (bilancio);2;Risorse a carico del bilancio;F;FINANZIA
+2023;MNST;ND;78;Straordinario (bilancio);61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;MNST;ND;78;Straordinario (bilancio);81;Decurtazioni;F;FINANZIA
+2023;MNST;1F;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;MNST;1F;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;MNST;1F;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;MNST;1F;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;MNST;2F;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;MNST;2F;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;MNST;2F;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;MNST;2F;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;PCMD;ND;19;Fondo Unico della Presidenza;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;PCMD;ND;19;Fondo Unico della Presidenza;9;Risorse variabili;F;FINANZIA
+2023;PCMD;ND;19;Fondo Unico della Presidenza;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;PCMD;ND;19;Fondo Unico della Presidenza;81;Decurtazioni;F;FINANZIA
+2023;PCMD;ND;30;Poste temporaneamente allocate all'esterno del Fondo;10;Risorse temporaneamente allocate all'esterno del Fondo;F;FINANZIA
+2023;PCMD;ND;30;Poste temporaneamente allocate all'esterno del Fondo;16;Destinazioni temporaneamente allocate all'esterno del Fondo;U;UTILIZZO
+2023;PCMD;ND;78;Straordinario (bilancio);2;Risorse a carico del bilancio;F;FINANZIA
+2023;PCMD;ND;78;Straordinario (bilancio);61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;PCMD;ND;78;Straordinario (bilancio);81;Decurtazioni;F;FINANZIA
+2023;PCMD;1F;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;PCMD;1F;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;PCMD;1F;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;PCMD;1F;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;PCMD;2F;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;PCMD;2F;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;PCMD;2F;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;PCMD;2F;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;RALN;ND;52;Fondo risorse decentrate;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;RALN;ND;52;Fondo risorse decentrate;9;Risorse variabili;F;FINANZIA
+2023;RALN;ND;52;Fondo risorse decentrate;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;RALN;ND;52;Fondo risorse decentrate;81;Decurtazioni;F;FINANZIA
+2023;RALN;ND;78;Straordinario (bilancio);2;Risorse a carico del bilancio;F;FINANZIA
+2023;RALN;ND;78;Straordinario (bilancio);61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;RALN;ND;78;Straordinario (bilancio);81;Decurtazioni;F;FINANZIA
+2023;RALN;ND;95;Incarichi di Elevata Qualificazione (bilancio);2;Risorse a carico del bilancio;F;FINANZIA
+2023;RALN;ND;95;Incarichi di Elevata Qualificazione (bilancio);61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;RALN;ND;95;Incarichi di Elevata Qualificazione (bilancio);81;Decurtazioni;F;FINANZIA
+2023;RALN;NF;8;Risorse per la retribuzione di posizione e di risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;RALN;NF;8;Risorse per la retribuzione di posizione e di risultato;9;Risorse variabili;F;FINANZIA
+2023;RALN;NF;8;Risorse per la retribuzione di posizione e di risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;RALN;NF;8;Risorse per la retribuzione di posizione e di risultato;81;Decurtazioni;F;FINANZIA
+2023;RALN;SC;77;Segretario comunale e provinciale (bilancio);2;Risorse a carico del bilancio;F;FINANZIA
+2023;RALN;SC;77;Segretario comunale e provinciale (bilancio);61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;REFR;ND;57;Fondo contrattazione collettiva decentrata integrativa;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;REFR;ND;57;Fondo contrattazione collettiva decentrata integrativa;9;Risorse variabili;F;FINANZIA
+2023;REFR;ND;57;Fondo contrattazione collettiva decentrata integrativa;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;REFR;ND;57;Fondo contrattazione collettiva decentrata integrativa;81;Decurtazioni;F;FINANZIA
+2023;REFR;ND;58;Oneri voci stipendiali diverse;2;Risorse a carico del bilancio;F;FINANZIA
+2023;REFR;ND;58;Oneri voci stipendiali diverse;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;REFR;NF;40;Fondo contrattazione integrativa dirigenti della Regione;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;REFR;NF;40;Fondo contrattazione integrativa dirigenti della Regione;9;Risorse variabili;F;FINANZIA
+2023;REFR;NF;40;Fondo contrattazione integrativa dirigenti della Regione;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;REFR;NF;40;Fondo contrattazione integrativa dirigenti della Regione;81;Decurtazioni;F;FINANZIA
+2023;REFR;NF;41;Fondo contrattazione integrativa dirigenti Enti Locali;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;REFR;NF;41;Fondo contrattazione integrativa dirigenti Enti Locali;9;Risorse variabili;F;FINANZIA
+2023;REFR;NF;41;Fondo contrattazione integrativa dirigenti Enti Locali;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;REFR;NF;41;Fondo contrattazione integrativa dirigenti Enti Locali;81;Decurtazioni;F;FINANZIA
+2023;RESA;ND;5;Fondo per le progressioni professionali;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;RESA;ND;5;Fondo per le progressioni professionali;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;RESA;ND;5;Fondo per le progressioni professionali;81;Decurtazioni;F;FINANZIA
+2023;RESA;ND;22;Fondo retribuzione di posizione;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;RESA;ND;22;Fondo retribuzione di posizione;9;Risorse variabili;F;FINANZIA
+2023;RESA;ND;22;Fondo retribuzione di posizione;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;RESA;ND;22;Fondo retribuzione di posizione;81;Decurtazioni;F;FINANZIA
+2023;RESA;ND;37;Fondo per la retribuzione di rendimento;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;RESA;ND;37;Fondo per la retribuzione di rendimento;9;Risorse variabili;F;FINANZIA
+2023;RESA;ND;37;Fondo per la retribuzione di rendimento;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;RESA;ND;37;Fondo per la retribuzione di rendimento;81;Decurtazioni;F;FINANZIA
+2023;RESA;ND;50;Poste temp. esterne al Fondo progressioni professionali;2;Risorse a carico del bilancio;F;FINANZIA
+2023;RESA;ND;50;Poste temp. esterne al Fondo progressioni professionali;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;RESA;ND;85;Maggiorazioni e indennità (bilancio);2;Risorse a carico del bilancio;F;FINANZIA
+2023;RESA;ND;85;Maggiorazioni e indennità (bilancio);61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;RESA;NF;73;Fondo per la retribuzione di risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;RESA;NF;73;Fondo per la retribuzione di risultato;9;Risorse variabili;F;FINANZIA
+2023;RESA;NF;73;Fondo per la retribuzione di risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;RESA;NF;73;Fondo per la retribuzione di risultato;81;Decurtazioni;F;FINANZIA
+2023;RESA;NF;83;Risorse e impieghi a carico del bilancio;2;Risorse a carico del bilancio;F;FINANZIA
+2023;RESA;NF;83;Risorse e impieghi a carico del bilancio;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;RESI;ND;52;Fondo risorse decentrate;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;RESI;ND;52;Fondo risorse decentrate;9;Risorse variabili;F;FINANZIA
+2023;RESI;ND;52;Fondo risorse decentrate;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;RESI;ND;52;Fondo risorse decentrate;81;Decurtazioni;F;FINANZIA
+2023;RESI;NF;91;Fondo retribuzione di posizione, parte variabile e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;RESI;NF;91;Fondo retribuzione di posizione, parte variabile e risultato;9;Risorse variabili;F;FINANZIA
+2023;RESI;NF;91;Fondo retribuzione di posizione, parte variabile e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;RESI;NF;91;Fondo retribuzione di posizione, parte variabile e risultato;81;Decurtazioni;F;FINANZIA
+2023;REVA;ND;59;Fondo progressione orizzontale;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;REVA;ND;59;Fondo progressione orizzontale;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;REVA;ND;65;Fondo Unico Aziendale o di ambito (FUA);7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;REVA;ND;65;Fondo Unico Aziendale o di ambito (FUA);9;Risorse variabili;F;FINANZIA
+2023;REVA;ND;65;Fondo Unico Aziendale o di ambito (FUA);61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;REVA;ND;65;Fondo Unico Aziendale o di ambito (FUA);81;Decurtazioni;F;FINANZIA
+2023;REVA;ND;78;Straordinario (bilancio);2;Risorse a carico del bilancio;F;FINANZIA
+2023;REVA;ND;78;Straordinario (bilancio);61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;REVA;NF;81;Retribuzione di risultato qualifica unica dirigenziale;2;Risorse a carico del bilancio;F;FINANZIA
+2023;REVA;NF;81;Retribuzione di risultato qualifica unica dirigenziale;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;REVA;NF;81;Retribuzione di risultato qualifica unica dirigenziale;81;Decurtazioni;F;FINANZIA
+2023;SCLA;CO;67;Fondo per il miglioramento dell'offerta formativa;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;SCLA;CO;67;Fondo per il miglioramento dell'offerta formativa;9;Risorse variabili;F;FINANZIA
+2023;SCLA;CO;67;Fondo per il miglioramento dell'offerta formativa;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;SCLA;CO;67;Fondo per il miglioramento dell'offerta formativa;81;Decurtazioni;F;FINANZIA
+2023;SCLA;NF;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;SCLA;NF;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;SCLA;NF;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;SCLA;NF;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA
+2023;SSNA;DR;72;Fondo per la retribuzione degli incarichi;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;SSNA;DR;72;Fondo per la retribuzione degli incarichi;9;Risorse variabili;F;FINANZIA
+2023;SSNA;DR;72;Fondo per la retribuzione degli incarichi;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;SSNA;DR;72;Fondo per la retribuzione degli incarichi;81;Decurtazioni;F;FINANZIA
+2023;SSNA;DR;73;Fondo per la retribuzione di risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;SSNA;DR;73;Fondo per la retribuzione di risultato;9;Risorse variabili;F;FINANZIA
+2023;SSNA;DR;73;Fondo per la retribuzione di risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;SSNA;DR;73;Fondo per la retribuzione di risultato;81;Decurtazioni;F;FINANZIA
+2023;SSNA;DR;74;Fondo per la retribuzione delle condizioni di lavoro;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;SSNA;DR;74;Fondo per la retribuzione delle condizioni di lavoro;9;Risorse variabili;F;FINANZIA
+2023;SSNA;DR;74;Fondo per la retribuzione delle condizioni di lavoro;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;SSNA;DR;74;Fondo per la retribuzione delle condizioni di lavoro;81;Decurtazioni;F;FINANZIA
+2023;SSNA;ND;69;Trattamento accessorio ruolo Ricerca IRCCS/IZS;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;SSNA;ND;69;Trattamento accessorio ruolo Ricerca IRCCS/IZS;9;Risorse variabili;F;FINANZIA
+2023;SSNA;ND;69;Trattamento accessorio ruolo Ricerca IRCCS/IZS;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;SSNA;ND;93;Fondo incarichi, progressioni economiche e indennità professionali;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;SSNA;ND;93;Fondo incarichi, progressioni economiche e indennità professionali;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;SSNA;ND;93;Fondo incarichi, progressioni economiche e indennità professionali;81;Decurtazioni;F;FINANZIA
+2023;SSNA;ND;94;Fondo premialità e condizioni di lavoro;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;SSNA;ND;94;Fondo premialità e condizioni di lavoro;9;Risorse variabili;F;FINANZIA
+2023;SSNA;ND;94;Fondo premialità e condizioni di lavoro;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;SSNA;ND;94;Fondo premialità e condizioni di lavoro;81;Decurtazioni;F;FINANZIA
+2023;SSNA;NS;22;Fondo retribuzione di posizione;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;SSNA;NS;22;Fondo retribuzione di posizione;9;Risorse variabili;F;FINANZIA
+2023;SSNA;NS;22;Fondo retribuzione di posizione;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;SSNA;NS;22;Fondo retribuzione di posizione;81;Decurtazioni;F;FINANZIA
+2023;SSNA;NS;87;Fondo retribuzione di risultato e altri trattamenti accessori;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;SSNA;NS;87;Fondo retribuzione di risultato e altri trattamenti accessori;9;Risorse variabili;F;FINANZIA
+2023;SSNA;NS;87;Fondo retribuzione di risultato e altri trattamenti accessori;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;SSNA;NS;87;Fondo retribuzione di risultato e altri trattamenti accessori;81;Decurtazioni;F;FINANZIA
+2023;UCAM;ND;52;Fondo risorse decentrate;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;UCAM;ND;52;Fondo risorse decentrate;9;Risorse variabili;F;FINANZIA
+2023;UCAM;ND;52;Fondo risorse decentrate;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;UCAM;ND;52;Fondo risorse decentrate;81;Decurtazioni;F;FINANZIA
+2023;UCAM;ND;78;Straordinario (bilancio);2;Risorse a carico del bilancio;F;FINANZIA
+2023;UCAM;ND;78;Straordinario (bilancio);61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;UCAM;ND;78;Straordinario (bilancio);81;Decurtazioni;F;FINANZIA
+2023;UCAM;ND;89;Fondo Quadri intermedi;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;UCAM;ND;89;Fondo Quadri intermedi;9;Risorse variabili;F;FINANZIA
+2023;UCAM;ND;89;Fondo Quadri intermedi;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;UCAM;ND;89;Fondo Quadri intermedi;81;Decurtazioni;F;FINANZIA
+2023;UNIV;ND;18;Fondo per la retribuzione di posizione e di risultato EP;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;UNIV;ND;18;Fondo per la retribuzione di posizione e di risultato EP;9;Risorse variabili;F;FINANZIA
+2023;UNIV;ND;18;Fondo per la retribuzione di posizione e di risultato EP;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;UNIV;ND;18;Fondo per la retribuzione di posizione e di risultato EP;81;Decurtazioni;F;FINANZIA
+2023;UNIV;ND;56;Fondo risorse decentrate per le categorie B, C e D;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;UNIV;ND;56;Fondo risorse decentrate per le categorie B, C e D;9;Risorse variabili;F;FINANZIA
+2023;UNIV;ND;56;Fondo risorse decentrate per le categorie B, C e D;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;UNIV;ND;56;Fondo risorse decentrate per le categorie B, C e D;81;Decurtazioni;F;FINANZIA
+2023;UNIV;ND;63;Poste temporaneamente allocate all'esterno del Fondo BCD;2;Risorse a carico del bilancio;F;FINANZIA
+2023;UNIV;ND;63;Poste temporaneamente allocate all'esterno del Fondo BCD;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;UNIV;ND;64;Poste temporaneamente allocate all'esterno del Fondo EP;2;Risorse a carico del bilancio;F;FINANZIA
+2023;UNIV;ND;64;Poste temporaneamente allocate all'esterno del Fondo EP;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;UNIV;ND;78;Straordinario (bilancio);2;Risorse a carico del bilancio;F;FINANZIA
+2023;UNIV;ND;78;Straordinario (bilancio);61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;UNIV;ND;78;Straordinario (bilancio);81;Decurtazioni;F;FINANZIA
+2023;UNIV;2F;44;Fondo retribuzione di posizione e risultato;7;Risorse fisse aventi carattere di certezza e stabilità;F;FINANZIA
+2023;UNIV;2F;44;Fondo retribuzione di posizione e risultato;9;Risorse variabili;F;FINANZIA
+2023;UNIV;2F;44;Fondo retribuzione di posizione e risultato;61;Destinazioni erogate per prestazioni rese nell'anno di riferimento;U;UTILIZZO
+2023;UNIV;2F;44;Fondo retribuzione di posizione e risultato;81;Decurtazioni;F;FINANZIA

@@ -1,5 +1,5 @@
 ---
-title: "SIM - Capacità Amministrativa della PA Anno 2023"
+title: "SIM - Monitoraggio effetti PNRR Anno 2023"
 output:
   flexdashboard::flex_dashboard:
     orientation: columns
@@ -516,9 +516,9 @@ MPA <- read_excel("07_Temp/lista_MPA.xlsx")
 
 rm(file_MPA,cartella_liste)
 
-# join dataset guida anagrafico df_tipo_istituzione
 
-base_pa <- df_tipo_istituzione %>%
+# join al dataset guida anagrafico df_tipo_istituzione
+ base_pa <- df_tipo_istituzione %>%
   left_join(assunti_agg, by = "ISTITUZIONE") %>%
   left_join(cessati_agg, by = "ISTITUZIONE") %>%
   left_join(occupazione_agg, by = "ISTITUZIONE") %>%
@@ -691,13 +691,14 @@ unlink(tmp_xlsx)
 
 # 13. AGGREGAZIONI DASHBOARD --------------------------------------
 
-overview <- base_pa %>%
+# overview nazionale
+nazionale <- base_pa %>%
   summarise(
     TOTALE_ASSUNTI = safe_sum(ASSUN_TOT),
     TOTALE_CESSATI = safe_sum(CESS_TOT),
     PERSONALE_TOTALE = safe_sum(PERSONALE_TOT),
     SALDO = TOTALE_ASSUNTI - TOTALE_CESSATI,
-    TURNOVER_MEDIO = ifelse(
+    TURNOVER_TOT = ifelse(
       PERSONALE_TOTALE == 0,
       NA_real_,
       (TOTALE_ASSUNTI + TOTALE_CESSATI) / PERSONALE_TOTALE * 100
@@ -706,15 +707,16 @@ overview <- base_pa %>%
     QUOTA_UNDER35 = ifelse(
       all(is.na(QUOTA_UNDER35_PERC)),
       NA_real_,
-      calc_weighted_mean(QUOTA_UNDER35_PERC, PERSONALE_TOT)
+      #calc_weighted_mean(QUOTA_UNDER35_PERC, PERSONALE_TOT)
+      100 * safe_sum(UNDER35) / PERSONALE_TOTALE
     ),
-    GIORNI_FORM_TOT = safe_sum(GIORNI_FORM_TOT),
+    GIORNI_FORM_TOT = safe_sum(GIORNI_FORM_TOT),#cambiare nome a GIORNI_FORM_PA
     GIORNI_FORM_PER_DIPENDENTE = ifelse(
       PERSONALE_TOTALE == 0,
       NA_real_,
       GIORNI_FORM_TOT / PERSONALE_TOTALE
     ),
-    SPESA_FORMAZIONE_L020 = safe_sum(SPESA_FORMAZIONE_L020),
+    SPESA_FORMAZIONE_L020 = safe_sum(SPESA_FORMAZIONE_L020), #cambiare nome a SPESA_FORMAZIONE_L020_PA
     SPESA_FORMAZIONE_PER_DIPENDENTE = ifelse(
       PERSONALE_TOTALE == 0,
       NA_real_,
@@ -722,7 +724,8 @@ overview <- base_pa %>%
     )
   )
 
-dinamica_tipo <- base_pa %>%
+# aggregazione tra tipologie di amministrazione 
+confronto_tipo_pa <- base_pa %>%
   filter(!is.na(DESC_TIPO_ISTITUZIONE)) %>%
   group_by(DESC_TIPO_ISTITUZIONE) %>%
   summarise(
@@ -733,10 +736,16 @@ dinamica_tipo <- base_pa %>%
     TURNOVER = ifelse(PERSONALE == 0, NA_real_, (ASSUNTI + CESSATI) / PERSONALE * 100),
     TASSO_CRESCITA = ifelse(PERSONALE == 0, NA_real_, SALDO / PERSONALE * 100),
     ETA_MEDIA = calc_weighted_mean(ETA_MEDIA_PA, PERSONALE_TOT),
+    # QUOTA_UNDER35 = ifelse(
+    #   all(is.na(QUOTA_UNDER35_PERC)),
+    #   NA_real_,
+    #   calc_weighted_mean(QUOTA_UNDER35_PERC, PERSONALE_TOT)
+    # ),
+    UNDER35 = safe_sum(UNDER35),
     QUOTA_UNDER35 = ifelse(
-      all(is.na(QUOTA_UNDER35_PERC)),
-      NA_real_,
-      calc_weighted_mean(QUOTA_UNDER35_PERC, PERSONALE_TOT)
+    PERSONALE == 0,
+    NA_real_,
+    100 * UNDER35 / PERSONALE
     ),
     PERC_DONNE = calc_weighted_mean(PERC_DONNE, PERSONALE_TOT),
     PERC_PART_TIME = calc_weighted_mean(PERC_PART_TIME, PERSONALE_TOT),
@@ -753,9 +762,10 @@ dinamica_tipo <- base_pa %>%
   ) %>%
   filter(PERSONALE > 0)
 
+# Top 30 PA con maggiore movimentazione del personale
 top_pa_turnover <- base_pa %>%
-  filter(PERSONALE_TOT >= 100) %>%
-  arrange(desc(TURNOVER_PERC)) %>%
+  filter(PERSONALE_TOT >= 100) %>% # elimino PA troppo piccole
+  arrange(desc(TURNOVER_PERC)) %>% # mette prima le PA con turnover più alto
   select(
     DESC_ISTITUZIONE,
     DESC_TIPO_ISTITUZIONE,
@@ -774,21 +784,42 @@ top_pa_turnover <- base_pa %>%
   ) %>%
   head(30)
 
-alert_pa <- base_pa %>%
+# Individuazione di segnali di attenzione a livello di singola PA
+segnali_pa <- base_pa %>%
   filter(PERSONALE_TOT >= 100) %>%
   mutate(
-    ALERT_TURNOVER_BASSO = TURNOVER_PERC < 2,
-    ALERT_SALDO_NEGATIVO = SALDO_ASS_CESS < 0,
-    ALERT_ETA_ALTA = ifelse(is.na(ETA_MEDIA_PA), FALSE, ETA_MEDIA_PA >= 55),
-    ALERT_UNDER35_BASSO = ifelse(is.na(QUOTA_UNDER35_PERC), FALSE, QUOTA_UNDER35_PERC < 5),
-    N_ALERT =
-      as.integer(ALERT_TURNOVER_BASSO) +
-      as.integer(ALERT_SALDO_NEGATIVO) +
-      as.integer(ALERT_ETA_ALTA) +
-      as.integer(ALERT_UNDER35_BASSO)
+    BASSO_TURNOVER = ifelse(
+      is.na(TURNOVER_PERC),
+      FALSE,
+      TURNOVER_PERC < 2
+    ),
+    
+    SALDO_NEGATIVO = ifelse(
+      is.na(SALDO_ASS_CESS),
+      FALSE,
+      SALDO_ASS_CESS < 0
+    ),
+    
+    ALTA_ETA_MEDIA = ifelse(
+      is.na(ETA_MEDIA_PA),
+      FALSE,
+      ETA_MEDIA_PA >= 55
+    ),
+    
+    BASSA_QUOTA_UNDER35 = ifelse(
+      is.na(QUOTA_UNDER35_PERC),
+      FALSE,
+      QUOTA_UNDER35_PERC < 5
+    ),
+    
+    N_SEGNALI =
+      as.integer(BASSO_TURNOVER) +
+      as.integer(SALDO_NEGATIVO) +
+      as.integer(ALTA_ETA_MEDIA) +
+      as.integer(BASSA_QUOTA_UNDER35)
   ) %>%
-  filter(N_ALERT > 0) %>%
-  arrange(desc(N_ALERT), desc(PERSONALE_TOT)) %>%
+  filter(N_SEGNALI > 0) %>%
+  arrange(desc(N_SEGNALI), desc(PERSONALE_TOT)) %>%
   select(
     DESC_ISTITUZIONE,
     DESC_TIPO_ISTITUZIONE,
@@ -797,7 +828,11 @@ alert_pa <- base_pa %>%
     ETA_MEDIA_PA,
     QUOTA_UNDER35_PERC,
     SALDO_ASS_CESS,
-    N_ALERT
+    BASSO_TURNOVER,
+    SALDO_NEGATIVO,
+    ALTA_ETA_MEDIA,
+    BASSA_QUOTA_UNDER35,
+    N_SEGNALI
   )
 
 # if (!is.null(df_geo) && all(c("REGIONE", "UOMINI", "DONNE") %in% names(df_geo))) {
@@ -832,7 +867,7 @@ Column {data-width=250}
 
 ```{r}
 valueBox(
-  value = scales::comma(overview$TOTALE_ASSUNTI, accuracy = 1),
+  value = scales::comma(nazionale$TOTALE_ASSUNTI, accuracy = 1),
   caption = "Totale assunti",
   icon = "fa-user-plus",
   color = "primary"
@@ -843,7 +878,7 @@ valueBox(
 
 ```{r}
 valueBox(
-  value = format_value(overview$TURNOVER_MEDIO, suffix = "%", accuracy = 0.1),
+  value = format_value(nazionale$TURNOVER_TOT, suffix = "%", accuracy = 0.1),
   caption = "Turnover medio aggregato",
   icon = "fa-refresh",
   color = "info"
@@ -857,7 +892,7 @@ Column {data-width=250}
 
 ```{r}
 valueBox(
-  value = format_value(overview$ETA_MEDIA_PA, accuracy = 0.1),
+  value = format_value(nazionale$ETA_MEDIA_PA, accuracy = 0.1),
   caption = "Età media ponderata",
   icon = "fa-calendar",
   color = "warning"
@@ -868,7 +903,7 @@ valueBox(
 
 ```{r}
 valueBox(
-  value = format_value(overview$QUOTA_UNDER35, suffix = "%", accuracy = 0.1),
+  value = format_value(nazionale$QUOTA_UNDER35, suffix = "%", accuracy = 0.1),
   caption = "Quota under 35",
   icon = "fa-users",
   color = "success"
@@ -880,7 +915,7 @@ Column {data-width=500}
 ### Assunti per tipologia di istituzione
 
 ```{r}
-p1 <- dinamica_tipo %>%
+p1 <- confronto_tipo_pa %>%
   arrange(desc(ASSUNTI)) %>%
   slice_head(n = 15) %>%
   ggplot(aes(x = reorder(DESC_TIPO_ISTITUZIONE, ASSUNTI), y = ASSUNTI)) +
@@ -902,7 +937,7 @@ Column
 ### Turnover per tipologia di istituzione
 
 ```{r}
-p2 <- dinamica_tipo %>%
+p2 <- confronto_tipo_pa %>%
   arrange(desc(TURNOVER)) %>%
   slice_head(n = 20) %>%
   ggplot(aes(x = reorder(DESC_TIPO_ISTITUZIONE, TURNOVER), y = TURNOVER)) +
@@ -986,7 +1021,7 @@ Column
 ### Percentuale donne
 
 ```{r}
-p4 <- dinamica_tipo %>%
+p4 <- confronto_tipo_pa %>%
   arrange(desc(PERC_DONNE)) %>%
   slice_head(n = 20) %>%
   ggplot(aes(x = reorder(DESC_TIPO_ISTITUZIONE, PERC_DONNE), y = PERC_DONNE)) +
@@ -1004,7 +1039,7 @@ Column
 ### Incidenza part-time
 
 ```{r}
-p5 <- dinamica_tipo %>%
+p5 <- confronto_tipo_pa %>%
   arrange(desc(PERC_PART_TIME)) %>%
   slice_head(n = 20) %>%
   ggplot(aes(x = reorder(DESC_TIPO_ISTITUZIONE, PERC_PART_TIME), y = PERC_PART_TIME)) +
@@ -1027,7 +1062,7 @@ Column {data-width=250}
 
 ```{r}
 valueBox(
-  value = scales::comma(overview$GIORNI_FORM_TOT, accuracy = 1),
+  value = scales::comma(nazionale$GIORNI_FORM_TOT, accuracy = 1),
   caption = "Giorni di formazione",
   icon = "fa-graduation-cap",
   color = "primary"
@@ -1038,7 +1073,7 @@ valueBox(
 
 ```{r}
 valueBox(
-  value = format_value(overview$GIORNI_FORM_PER_DIPENDENTE, accuracy = 0.01),
+  value = format_value(nazionale$GIORNI_FORM_PER_DIPENDENTE, accuracy = 0.01),
   caption = "Giorni per dipendente",
   icon = "fa-clock-o",
   color = "info"
@@ -1052,7 +1087,7 @@ Column {data-width=250}
 
 ```{r}
 valueBox(
-  value = scales::comma(overview$SPESA_FORMAZIONE_L020, accuracy = 1),
+  value = scales::comma(nazionale$SPESA_FORMAZIONE_L020, accuracy = 1),
   caption = "Spesa formazione L020",
   icon = "fa-euro",
   color = "success"
@@ -1063,7 +1098,7 @@ valueBox(
 
 ```{r}
 valueBox(
-  value = format_value(overview$SPESA_FORMAZIONE_PER_DIPENDENTE, accuracy = 0.1),
+  value = format_value(nazionale$SPESA_FORMAZIONE_PER_DIPENDENTE, accuracy = 0.1),
   caption = "Spesa formazione per dipendente",
   icon = "fa-calculator",
   color = "warning"
@@ -1076,7 +1111,7 @@ Column {data-width=500}
 ### Giorni di formazione per dipendente per tipologia di istituzione
 
 ```{r}
-p_form1 <- dinamica_tipo %>%
+p_form1 <- confronto_tipo_pa %>%
   arrange(desc(GIORNI_FORM_PER_DIPENDENTE)) %>%
   slice_head(n = 20) %>%
   ggplot(aes(
@@ -1101,7 +1136,7 @@ Column {data-width=500}
 ### Spesa formazione per dipendente per tipologia di istituzione
 
 ```{r}
-p_form2 <- dinamica_tipo %>%
+p_form2 <- confronto_tipo_pa %>%
   arrange(desc(SPESA_FORMAZIONE_PER_DIPENDENTE)) %>%
   slice_head(n = 20) %>%
   ggplot(aes(
@@ -1142,32 +1177,32 @@ htmltools::div(
 ```{r}
 trend_template <- tibble::tibble(
   ANNO = anno_ca,
-  TOTALE_ASSUNTI = overview$TOTALE_ASSUNTI,
-  TOTALE_CESSATI = overview$TOTALE_CESSATI,
-  SALDO = overview$SALDO,
-  PERSONALE_TOTALE = overview$PERSONALE_TOTALE,
-  TURNOVER_MEDIO = overview$TURNOVER_MEDIO,
-  ETA_MEDIA_PA = overview$ETA_MEDIA_PA,
-  QUOTA_UNDER35 = overview$QUOTA_UNDER35,
-  GIORNI_FORM_PER_DIPENDENTE = overview$GIORNI_FORM_PER_DIPENDENTE,
-  SPESA_FORMAZIONE_PER_DIPENDENTE = overview$SPESA_FORMAZIONE_PER_DIPENDENTE
+  TOTALE_ASSUNTI = nazionale$TOTALE_ASSUNTI,
+  TOTALE_CESSATI = nazionale$TOTALE_CESSATI,
+  SALDO = nazionale$SALDO,
+  PERSONALE_TOTALE = nazionale$PERSONALE_TOTALE,
+  TURNOVER_TOT = nazionale$TURNOVER_TOT,
+  ETA_MEDIA_PA = nazionale$ETA_MEDIA_PA,
+  QUOTA_UNDER35 = nazionale$QUOTA_UNDER35,
+  GIORNI_FORM_PER_DIPENDENTE = nazionale$GIORNI_FORM_PER_DIPENDENTE,
+  SPESA_FORMAZIONE_PER_DIPENDENTE = nazionale$SPESA_FORMAZIONE_PER_DIPENDENTE
 )
 
 DT::datatable(trend_template, rownames = FALSE) %>%
   DT::formatRound(columns = names(trend_template)[-1], digits = 2)
 ```
 
-Alert e criticità
+Segnali di attenzione
 =======================================================================
 
 Column
 -----------------------------------------------------------------------
 
-### Enti con criticità
+### Enti con segnali di attenzione
 
 ```{r}
 DT::datatable(
-  alert_pa,
+  segnali_pa,
   rownames = FALSE,
   filter = "top",
   options = list(pageLength = 15, scrollX = TRUE)
@@ -1177,7 +1212,7 @@ DT::datatable(
     digits = 2
   ) %>%
   DT::formatRound(
-    columns = c("PERSONALE_TOT", "SALDO_ASS_CESS", "N_ALERT"),
+    columns = c("PERSONALE_TOT", "SALDO_ASS_CESS", "N_SEGNALI"),
     digits = 0
   )
 ```
@@ -1185,17 +1220,17 @@ DT::datatable(
 Column
 -----------------------------------------------------------------------
 
-### Distribuzione numero alert
+### Distribuzione dei segnali
 
 ```{r}
-p6 <- alert_pa %>%
-  count(N_ALERT) %>%
-  ggplot(aes(x = factor(N_ALERT), y = n)) +
+p6 <- segnali_pa %>%
+  count(N_SEGNALI) %>%
+  ggplot(aes(x = factor(N_SEGNALI), y = n)) +
   geom_col() +
   labs(
-    x = "Numero di alert",
+    x = "Numero di segnali",
     y = "Numero PA",
-    title = "Distribuzione delle criticità rilevate"
+    title = "Distribuzione dei segnali di attenzione"
   ) +
   theme_minimal()
 

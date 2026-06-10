@@ -32,12 +32,13 @@ file_anagrafe <- drive_find(
   n_max = 1
 )
 
+# crea cartella temporanea se non esiste
+dir.create("07_Temp", showWarnings = FALSE, recursive = TRUE)
+
 #file temporanei locali
 drive_download(file_s13, path = "07_Temp/lista_s13.xlsx", overwrite = TRUE)
 drive_download(file_MPA, path = "07_Temp/lista_MPA.xlsx", overwrite = TRUE)
 drive_download(file_anagrafe, path = "07_Temp/lista_anag.xlsx", overwrite = TRUE)
-
-dir.exists("07_Temp")
 
 #caricamento su R
 s13 <- read_excel("07_Temp/lista_s13.xlsx")

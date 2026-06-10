@@ -412,8 +412,8 @@ if (all(toupper(required_form_cols) %in% toupper(names(df_formazione)))) {
       GIORNI_FORM_DONNE  = safe_sum(GIORNI_FORM_DONNE),
       GIORNI_FORM_TOT    = GIORNI_FORM_UOMINI + GIORNI_FORM_DONNE,
 
-      FORM_MEDIA_UOMINI_CA = mean(FORM_MEDIA_UOMINI, na.rm = TRUE),
-      FORM_MEDIA_DONNE_CA  = mean(FORM_MEDIA_DONNE,  na.rm = TRUE),
+      #FORM_MEDIA_UOMINI_CA = mean(FORM_MEDIA_UOMINI, na.rm = TRUE),
+      #FORM_MEDIA_DONNE_CA  = mean(FORM_MEDIA_DONNE,  na.rm = TRUE),
 
       .groups = "drop"
     )
@@ -435,8 +435,8 @@ if (all(toupper(required_form_cols) %in% toupper(names(df_formazione)))) {
       GIORNI_FORM_UOMINI = NA_real_,
       GIORNI_FORM_DONNE = NA_real_,
       GIORNI_FORM_TOT = NA_real_,
-      FORM_MEDIA_UOMINI_CA = NA_real_,
-      FORM_MEDIA_DONNE_CA = NA_real_
+      # FORM_MEDIA_UOMINI_CA = NA_real_,
+      # FORM_MEDIA_DONNE_CA = NA_real_
     )
 
   formazione_macro_pa <- tibble::tibble(
@@ -449,8 +449,8 @@ if (all(toupper(required_form_cols) %in% toupper(names(df_formazione)))) {
 }
 
 # 11. COSTO DEL LAVORO E SPESA DI FORMAZIONE ----------------------
-# La spesa di formazione viene individuata tramite la voce L020, quando presente.
-# Il codice è scritto in modo robusto rispetto a lievi variazioni nei nomi delle colonne.
+# La spesa di formazione viene individuata tramite la voce L020
+# Il codice è scritto in modo robusto rispetto a lievi variazioni nei nomi delle colonne
 
 if (!is.null(df_costo_lavoro)) {
 
@@ -473,7 +473,7 @@ if (!is.null(df_costo_lavoro)) {
       summarise(
         TOTALE_SPESA = safe_sum(TOTALE_SPESA_TMP),
         SPESA_FORMAZIONE_L020 = safe_sum(ifelse(VOCE_SPESA_TMP == "L020", TOTALE_SPESA_TMP, 0)),
-        VOCE_SPESA_STR = paste(sort(unique(VOCE_SPESA_TMP[!is.na(VOCE_SPESA_TMP)])), collapse = "/"),
+        VOCE_SPESA_STR = paste(sort(unique(VOCE_SPESA_TMP[!is.na(VOCE_SPESA_TMP)])), collapse = "|"),
         .groups = "drop"
       )
 
@@ -515,6 +515,8 @@ drive_download(file_MPA, path = "07_Temp/lista_MPA.xlsx", overwrite = TRUE)
 MPA <- read_excel("07_Temp/lista_MPA.xlsx")
 
 rm(file_MPA,cartella_liste)
+
+# join dataset guida anagrafico df_tipo_istituzione
 
 base_pa <- df_tipo_istituzione %>%
   left_join(assunti_agg, by = "ISTITUZIONE") %>%
@@ -619,6 +621,22 @@ base_pa <- df_tipo_istituzione %>%
     )
   )
 
+MPA <- MPA %>%
+  mutate(
+    CODICE_FISCALE = trimws(as.character(CODICE_FISCALE))
+  )
+
+base_pa <- base_pa %>%
+  mutate(
+    CODI_FISCALE = trimws(as.character(CODI_FISCALE))
+  )
+
+base_pa <- base_pa %>%
+  semi_join(
+    MPA,
+    by = c("CODI_FISCALE" = "CODICE_FISCALE")
+  )
+
 # Copertura MPA
 # sum(
 #   base_pa$CODI_FISCALE %in% MPA$CODICE_FISCALE,
@@ -642,9 +660,17 @@ base_pa <- df_tipo_istituzione %>%
 # Match MPA: 4410 
 # Copertura: 35.98531
 
-# Salvataggio master_CA in drive
+
+# Salvataggio master_CA in Drive dentro:
+# Processed files / Conto_annuale
+
 cartella_processed <- drive_get(
   as_id("1VJhXYt47x74dc2zaEgkvz6YSw39BTMai")
+)
+
+cartella_processed_conto_annuale <- drive_get_or_create_folder(
+  folder_name = "Conto_annuale",
+  parent = cartella_processed
 )
 
 tmp_xlsx <- tempfile(fileext = ".xlsx")
@@ -656,8 +682,9 @@ writexl::write_xlsx(
 
 drive_upload(
   media = tmp_xlsx,
-  path = cartella_processed,
-  name = paste0("master_CA_MPA_", anno_ca, ".xlsx")
+  path = cartella_processed_conto_annuale,
+  name = paste0("master_CA_MPA_", anno_ca, ".xlsx"),
+  overwrite = TRUE
 )
 
 unlink(tmp_xlsx)

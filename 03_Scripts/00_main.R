@@ -275,7 +275,9 @@ drive_download_from_path(drive_file_bdap, local_file_bdap, overwrite = TRUE)
 MPA_raw <- readxl::read_excel(local_file_mpa)
 s13_raw <- readxl::read_excel(local_file_s13)
 BDAP_raw <- readxl::read_excel(local_file_bdap)
-
+names(MPA_raw)
+names(s13_raw)
+names(BDAP_raw)
 
 #..............................................................................#
 #                       STANDARDIZZAZIONE MINIMA FONTI                      ####
@@ -617,11 +619,13 @@ conflict_log <- bind_rows(
 # Regole di priorità adottate in questa versione:
 #
 # - Perimetro: MPA.
-# - Codice fiscale e codice regione: MPA, perché definiscono il record finale.
+# - Codice fiscale: MPA, perché definiscono il record finale.
 # - Ragione sociale: MPA > BDAP > S13.
 #   Questa scelta è coerente con MPA come lista di riferimento.
 #   BDAP resta fonte di controllo e fallback.
+# - codice_reg: MPA > BDAP > S13
 # - FG: MPA > S13 > BDAP.
+# - desc_fg: MPA > S13 > BDAP, se disponibile
 # - Codici fonte-specifici: dalla rispettiva fonte.
 # - ATECO: BDAP.
 #
@@ -629,78 +633,253 @@ conflict_log <- bind_rows(
 # lista finale, ma restano documentate nel file audit.
 
 
+#..............................................................................
+# COSTRUZIONE LISTA FINALE 
+#..............................................................................
+# La lista finale è una anagrafica centrale arricchita:
+# - MPA definisce il perimetro delle unità incluse;
+# - S13 integra/confronta alcune variabili comuni;
+# - OpenBDAP arricchisce la lista con codici di raccordo e informazioni
+#   anagrafiche/amministrative, senza modificare il perimetro MPA.
+#
+# Nota metodologica:
+# FG e Codice_Forma_Giuridica di BDAP sono mantenuti separati.
+# FG deriva da MPA/S13; la forma giuridica BDAP è conservata come
+# informazione aggiuntiva, ma non usata per costruire FG.
+#..............................................................................
+
 lista <- MPA_S13_BDAP %>%
   mutate(
-    # Identificativi principali.
+    #..............................................................................
+    # Identificativi principali
+    #..............................................................................
     codice_fiscale = CODICE_FISCALE,
+    
     codice_reg = coalesce_existing(
       .,
-      c("CODICE_REG_mpa", "CODICE_REG_bdap", "CODICE_REG_s13")
+      c("CODICE_REG_mpa", "Codice_Regione_bdap", "CODICE_REG_s13")
     ),
-    
     fonte_codice_reg = source_existing(
       .,
-      cols = c("CODICE_REG_mpa", "CODICE_REG_bdap", "CODICE_REG_s13"),
+      cols = c("CODICE_REG_mpa", "Codice_Regione_bdap", "CODICE_REG_s13"),
       sources = c("MPA", "BDAP", "S13")
     ),
     
-    # Denominazione / ragione sociale.
-     ragione_sociale = coalesce_existing(
+    ragione_sociale = coalesce_existing(
       .,
-      c("RAGIONE_SOCIALE_mpa", "RAGIONE_SOCIALE_bdap", "RAGIONE_SOCIALE_s13")
-      # c("RAGIONE_SOCIALE_bdap", "RAGIONE_SOCIALE_mpa", "RAGIONE_SOCIALE_s13")
+      c("RAGIONE_SOCIALE_mpa", "Denominazione_bdap", "RAGIONE_SOCIALE_s13")
     ),
-    
     fonte_ragione_sociale = source_existing(
       .,
-      cols = c("RAGIONE_SOCIALE_mpa", "RAGIONE_SOCIALE_bdap", "RAGIONE_SOCIALE_s13"),
+      cols = c("RAGIONE_SOCIALE_mpa", "Denominazione_bdap", "RAGIONE_SOCIALE_s13"),
       sources = c("MPA", "BDAP", "S13")
-      # cols = c("RAGIONE_SOCIALE_bdap", "RAGIONE_SOCIALE_mpa", "RAGIONE_SOCIALE_s13"),
-      # sources = c("BDAP", "MPA", "S13")
     ),
     
-    # Campo FG.
+    #..............................................................................
+    # Classificazione FG: solo MPA/S13
+    #..............................................................................
     fg = coalesce_existing(
       .,
-      c("FG_mpa", "FG_s13", "FG_bdap")
+      c("FG_mpa", "FG_s13")
     ),
-    
     fonte_fg = source_existing(
       .,
-      cols = c("FG_mpa", "FG_s13", "FG_bdap"),
-      sources = c("MPA", "S13", "BDAP")
+      cols = c("FG_mpa", "FG_s13"),
+      sources = c("MPA", "S13")
     ),
     
-    # Indicatori di presenza nelle fonti.
-    presente_mpa = coalesce_existing(., c("presente_mpa_mpa")),
-    presente_s13 = coalesce_existing(., c("presente_s13_s13")),
-    presente_bdap = coalesce_existing(., c("presente_bdap_bdap")),
+    desc_fg = coalesce_existing(
+      .,
+      c("DESC_FG_mpa", "DESCRIZIONE_FORMA_GIURIDICA_s13")
+    ),
+    fonte_desc_fg = source_existing(
+      .,
+      cols = c("DESC_FG_mpa", "DESCRIZIONE_FORMA_GIURIDICA_s13"),
+      sources = c("MPA", "S13")
+    ),
     
-    # Codici fonte-specifici.
-    codice_unita_mpa = coalesce_existing(., c("CODICE_UNITA_UG_mpa", "CODICE_UNITA_mpa")),
+    #..............................................................................
+    # Codici di raccordo MPA/S13/BDAP
+    #..............................................................................
+    codice_unita_mpa = coalesce_existing(., c("CODICE_UNITA_UG_mpa")),
     codice_unita_s13 = coalesce_existing(., c("CODICE_UNITA_s13")),
     
-    bdap_record_storicizzato = coalesce_existing(
+    id_ente_bdap = coalesce_existing(., c("Id_Ente_bdap")),
+    codice_ente_ipa = coalesce_existing(., c("Codice_Ente_IPA_bdap")),
+    codice_ente_siope = coalesce_existing(., c("Codice_Ente_SIOPE_bdap")),
+    
+    #..............................................................................
+    # Informazioni territoriali BDAP
+    #..............................................................................
+    codice_istat_comune = coalesce_existing(., c("Codice_ISTAT_Comune_bdap")),
+    codice_comune = coalesce_existing(., c("Codice_Comune_bdap")),
+    comune = coalesce_existing(., c("Dizione_Comune_bdap")),
+    
+    codice_provincia = coalesce_existing(., c("Codice_Provincia_bdap")),
+    sigla_provincia = coalesce_existing(., c("Sigla_Provincia_bdap")),
+    provincia = coalesce_existing(., c("Dizione_Provincia_bdap")),
+    
+    codice_regione_bdap = coalesce_existing(., c("Codice_Regione_bdap")),
+    regione_bdap = coalesce_existing(., c("Dizione_Regione_bdap")),
+    
+    #..............................................................................
+    # Classificazioni BDAP mantenute separate
+    #..............................................................................
+    ateco_bdap = coalesce_existing(., c("Codice_ATECO_bdap")),
+    descr_ateco_bdap = coalesce_existing(., c("Descr_Codice_ATECO_bdap")),
+    
+    codice_forma_giuridica_bdap = coalesce_existing(
       .,
-      c("bdap_record_storicizzato_bdap")
+      c("Codice_Forma_Giuridica_bdap")
+    ),
+    descr_forma_giuridica_bdap = coalesce_existing(
+      .,
+      c("Descr_Forma_Giuridica_bdap")
     ),
     
-    bdap_storicizzazione_ambigua = coalesce_existing(
+    codice_tipologia_siope_bdap = coalesce_existing(
       .,
-      c("bdap_storicizzazione_ambigua_bdap")
+      c("Codice_Tipologia_SIOPE_bdap")
+    ),
+    descr_tipologia_siope_bdap = coalesce_existing(
+      .,
+      c("Descr_Tipologia_SIOPE_bdap")
     ),
     
+    codice_categoria_ipa_bdap = coalesce_existing(
+      .,
+      c("Codice_Categoria_IPA_bdap")
+    ),
+    descr_categoria_ipa_bdap = coalesce_existing(
+      .,
+      c("Descr_Categoria_IPA_bdap")
+    ),
+    
+    codice_tipologia_ipa_bdap = coalesce_existing(
+      .,
+      c("Codice_Tipologia_IPA_bdap")
+    ),
+    descr_tipologia_ipa_bdap = coalesce_existing(
+      .,
+      c("Descr_Tipologia_IPA_bdap")
+    ),
+    
+    codice_tipologia_mtur_bdap = coalesce_existing(
+      .,
+      c("Codice_Tipologia_MTUR_bdap")
+    ),
+    descr_tipologia_mtur_bdap = coalesce_existing(
+      .,
+      c("Descr_Tipologia_MTUR_bdap")
+    ),
+    
+    codice_tipologia_dt_bdap = coalesce_existing(
+      .,
+      c("Codice_Tipologia_DT_bdap")
+    ),
+    descr_tipologia_dt_bdap = coalesce_existing(
+      .,
+      c("Descr_Tipologia_DT_bdap")
+    ),
+    
+    codice_tipologia_istat_s13_bdap = coalesce_existing(
+      .,
+      c("Codice_Tipologia_ISTAT_S13_bdap")
+    ),
+    descr_tipologia_istat_s13_bdap = coalesce_existing(
+      .,
+      c("Descr_Tipologia_ISTAT_S13_bdap")
+    ),
+    
+    codice_tipologia_dlgs_118_2011_bdap = coalesce_existing(
+      .,
+      c("Codice_Tipologia_DLGS_118_2011_bdap")
+    ),
+    descr_tipologia_dlgs_118_2011_bdap = coalesce_existing(
+      .,
+      c("Descr_Tipologia_DLGS_118_2011_bdap")
+    ),
+    
+    #..............................................................................
+    # Date BDAP
+    #..............................................................................
+    data_istituzione_bdap = coalesce_existing(., c("Data_Istituzione_bdap")),
+    data_cessazione_bdap = coalesce_existing(., c("Data_Cessazione_bdap")),
+    
+    data_inclusione_siope_bdap = coalesce_existing(
+      .,
+      c("Data_Inclusione_SIOPE_bdap")
+    ),
+    data_esclusione_siope_bdap = coalesce_existing(
+      .,
+      c("Data_Esclusione_SIOPE_bdap")
+    ),
+    
+    data_inclusione_ipa_bdap = coalesce_existing(
+      .,
+      c("Data_Inclusione_IPA_bdap")
+    ),
+    data_esclusione_ipa_bdap = coalesce_existing(
+      .,
+      c("Data_Esclusione_IPA_bdap")
+    ),
+    
+    data_inclusione_istat_s13_bdap = coalesce_existing(
+      .,
+      c("Data_Inclusione_ISTAT_S13_bdap")
+    ),
+    data_esclusione_istat_s13_bdap = coalesce_existing(
+      .,
+      c("Data_Esclusione_ISTAT_S13_bdap")
+    ),
+    
+    data_inclusione_dlgs_118_2011_bdap = coalesce_existing(
+      .,
+      c("Data_Inclusione_DLGS_118_2011_bdap")
+    ),
+    data_esclusione_dlgs_118_2011_bdap = coalesce_existing(
+      .,
+      c("Data_Esclusione_DLGS_118_2011_bdap")
+    ),
+    
+    #..............................................................................
+    # Informazioni anagrafiche e di contatto BDAP
+    #..............................................................................
+    url_bdap = coalesce_existing(., c("URL_bdap")),
+    telefono_bdap = coalesce_existing(., c("Telefono_bdap")),
+    fax_bdap = coalesce_existing(., c("FAX_bdap")),
+    indirizzo_bdap = coalesce_existing(., c("Indirizzo_bdap")),
+    cap_bdap = coalesce_existing(., c("CAP_bdap")),
+    
+    nome_resp_bdap = coalesce_existing(., c("Nome_Resp_bdap")),
+    cogn_resp_bdap = coalesce_existing(., c("Cogn_Resp_bdap")),
+    titolo_resp_bdap = coalesce_existing(., c("Titolo_Resp_bdap")),
+    
+    #..............................................................................
+    # Indicatori di presenza fonte
+    #..............................................................................
+    presente_mpa = as.integer(coalesce_existing(., c("presente_mpa_mpa"))),
+    presente_s13 = as.integer(coalesce_existing(., c("presente_s13_s13"))),
+    presente_bdap = as.integer(coalesce_existing(., c("presente_bdap_bdap"))),
+    
+    #..............................................................................
+    # Indicatori di storicizzazione BDAP
+    #..............................................................................
+    bdap_record_storicizzato = as.integer(
+      coalesce_existing(., c("bdap_record_storicizzato_bdap"))
+    ),
+    bdap_storicizzazione_ambigua = as.integer(
+      coalesce_existing(., c("bdap_storicizzazione_ambigua_bdap"))
+    ),
     bdap_n_righe_originali = coalesce_existing(
       .,
       c("n_righe_bdap_originali_bdap")
     ),
     
-    
-    # Classificazione ATECO da BDAP.
-    ateco_bdap = coalesce_existing(., c("Codice_ATECO_bdap", "CODICE_ATECO_bdap")),
     run_id = RUN_ID
   ) %>%
   select(
+    # Identificativi e variabili principali
     codice_fiscale,
     codice_reg,
     fonte_codice_reg,
@@ -708,15 +887,76 @@ lista <- MPA_S13_BDAP %>%
     fonte_ragione_sociale,
     fg,
     fonte_fg,
+    desc_fg,
+    fonte_desc_fg,
+    
+    # Codici di raccordo
     codice_unita_mpa,
     codice_unita_s13,
+    id_ente_bdap,
+    codice_ente_ipa,
+    codice_ente_siope,
+    
+    # Territorio
+    codice_istat_comune,
+    codice_comune,
+    comune,
+    codice_provincia,
+    sigla_provincia,
+    provincia,
+    codice_regione_bdap,
+    regione_bdap,
+    
+    # Classificazioni BDAP
     ateco_bdap,
+    descr_ateco_bdap,
+    codice_forma_giuridica_bdap,
+    descr_forma_giuridica_bdap,
+    codice_tipologia_siope_bdap,
+    descr_tipologia_siope_bdap,
+    codice_categoria_ipa_bdap,
+    descr_categoria_ipa_bdap,
+    codice_tipologia_ipa_bdap,
+    descr_tipologia_ipa_bdap,
+    codice_tipologia_mtur_bdap,
+    descr_tipologia_mtur_bdap,
+    codice_tipologia_dt_bdap,
+    descr_tipologia_dt_bdap,
+    codice_tipologia_istat_s13_bdap,
+    descr_tipologia_istat_s13_bdap,
+    codice_tipologia_dlgs_118_2011_bdap,
+    descr_tipologia_dlgs_118_2011_bdap,
+    
+    # Date BDAP
+    data_istituzione_bdap,
+    data_cessazione_bdap,
+    data_inclusione_siope_bdap,
+    data_esclusione_siope_bdap,
+    data_inclusione_ipa_bdap,
+    data_esclusione_ipa_bdap,
+    data_inclusione_istat_s13_bdap,
+    data_esclusione_istat_s13_bdap,
+    data_inclusione_dlgs_118_2011_bdap,
+    data_esclusione_dlgs_118_2011_bdap,
+    
+    # Contatti BDAP
+    url_bdap,
+    telefono_bdap,
+    fax_bdap,
+    indirizzo_bdap,
+    cap_bdap,
+    nome_resp_bdap,
+    cogn_resp_bdap,
+    titolo_resp_bdap,
+    
+    # Indicatori di copertura e qualità
     presente_mpa,
     presente_s13,
     presente_bdap,
     bdap_record_storicizzato,
     bdap_storicizzazione_ambigua,
     bdap_n_righe_originali,
+    
     run_id
   )
 
@@ -728,23 +968,47 @@ lista <- MPA_S13_BDAP %>%
 # Questo log dà una sintesi della qualità e completezza della lista finale.
 # È utile per capire rapidamente quanti record MPA sono stati arricchiti
 # con informazioni S13 e BDAP.
-
-coverage_log <- lista %>%
-  summarise(
-    run_id = RUN_ID,
-    n_record_lista = n(),
-    n_codice_fiscale_mancante = sum(is.na(codice_fiscale)),
-    n_codice_reg_mancante = sum(is.na(codice_reg)),
-    n_ragione_sociale_mancante = sum(is.na(ragione_sociale)),
-    n_fg_mancante = sum(is.na(fg)),
-    n_presenti_in_mpa = sum(!is.na(presente_mpa)),
-    n_presenti_anche_in_s13 = sum(!is.na(presente_s13)),
-    n_presenti_anche_in_bdap = sum(!is.na(presente_bdap)),
-    n_ateco_bdap_valorizzato = sum(!is.na(ateco_bdap)),
-    n_bdap_record_storicizzati = sum(as.numeric(bdap_record_storicizzato) == 1, na.rm = TRUE),
-    n_bdap_storicizzazioni_ambigue = sum(as.numeric(bdap_storicizzazione_ambigua) == 1, na.rm = TRUE)
-  )
-
+coverage_log <- tibble(
+  run_id = RUN_ID,
+  n_record_lista = nrow(lista),
+  
+  n_codice_fiscale_mancante = sum(is.na(lista$codice_fiscale) | lista$codice_fiscale == ""),
+  n_codice_reg_mancante = sum(is.na(lista$codice_reg) | lista$codice_reg == ""),
+  n_ragione_sociale_mancante = sum(is.na(lista$ragione_sociale) | lista$ragione_sociale == ""),
+  n_fg_mancante = sum(is.na(lista$fg) | lista$fg == ""),
+  n_desc_fg_mancante = sum(is.na(lista$desc_fg) | lista$desc_fg == ""),
+  
+  n_presenti_in_mpa = sum(lista$presente_mpa == 1, na.rm = TRUE),
+  n_presenti_anche_in_s13 = sum(lista$presente_s13 == 1, na.rm = TRUE),
+  n_presenti_anche_in_bdap = sum(lista$presente_bdap == 1, na.rm = TRUE),
+  
+  n_codice_unita_mpa_valorizzato = sum(!is.na(lista$codice_unita_mpa) & lista$codice_unita_mpa != ""),
+  n_codice_unita_s13_valorizzato = sum(!is.na(lista$codice_unita_s13) & lista$codice_unita_s13 != ""),
+  n_id_ente_bdap_valorizzato = sum(!is.na(lista$id_ente_bdap) & lista$id_ente_bdap != ""),
+  n_codice_ente_ipa_valorizzato = sum(!is.na(lista$codice_ente_ipa) & lista$codice_ente_ipa != ""),
+  n_codice_ente_siope_valorizzato = sum(!is.na(lista$codice_ente_siope) & lista$codice_ente_siope != ""),
+  
+  n_ateco_bdap_valorizzato = sum(!is.na(lista$ateco_bdap) & lista$ateco_bdap != ""),
+  n_forma_giuridica_bdap_valorizzata = sum(
+    !is.na(lista$codice_forma_giuridica_bdap) &
+      lista$codice_forma_giuridica_bdap != ""
+  ),
+  n_tipologia_ipa_bdap_valorizzata = sum(
+    !is.na(lista$codice_tipologia_ipa_bdap) &
+      lista$codice_tipologia_ipa_bdap != ""
+  ),
+  n_tipologia_siope_bdap_valorizzata = sum(
+    !is.na(lista$codice_tipologia_siope_bdap) &
+      lista$codice_tipologia_siope_bdap != ""
+  ),
+  n_tipologia_istat_s13_bdap_valorizzata = sum(
+    !is.na(lista$codice_tipologia_istat_s13_bdap) &
+      lista$codice_tipologia_istat_s13_bdap != ""
+  ),
+  
+  n_bdap_record_storicizzati = sum(lista$bdap_record_storicizzato == 1, na.rm = TRUE),
+  n_bdap_storicizzazioni_ambigue = sum(lista$bdap_storicizzazione_ambigua == 1, na.rm = TRUE)
+)
 
 technical_suffix_cols <- names(lista)[
   stringr::str_detect(names(lista), "\\.x$|\\.y$|_x$|_y$")
@@ -774,6 +1038,67 @@ if (any(!merge_quality_check$esito)) {
   warning("Alcuni controlli di qualità del merge non sono superati. Controllare merge_quality_check nel file audit.")
 }
 
+
+#..............................................................................
+# LOG DI SOVRAPPOSIZIONE TRA FONTI ####
+#..............................................................................
+# Descrive come le unità del perimetro MPA si distribuiscono rispetto
+# alla presenza/assenza nelle fonti di arricchimento S13 e OpenBDAP.
+# Utile per documentare dove la lista finale dispone di informazione completa
+# e dove invece alcune informazioni di fonte S13 o BDAP non sono disponibili.
+
+source_overlap_log <- lista %>%
+  mutate(
+    presenza_fonti = case_when(
+      presente_mpa == 1 & presente_s13 == 1 & presente_bdap == 1 ~ "MPA + S13 + OpenBDAP",
+      presente_mpa == 1 & presente_s13 == 1 & (is.na(presente_bdap) | presente_bdap != 1) ~ "MPA + S13, non OpenBDAP",
+      presente_mpa == 1 & (is.na(presente_s13) | presente_s13 != 1) & presente_bdap == 1 ~ "MPA + OpenBDAP, non S13",
+      presente_mpa == 1 & (is.na(presente_s13) | presente_s13 != 1) & (is.na(presente_bdap) | presente_bdap != 1) ~ "Solo MPA",
+      TRUE ~ "Altro controllo"
+    ),
+    presenza_fonti = factor(
+      presenza_fonti,
+      levels = c(
+        "MPA + S13 + OpenBDAP",
+        "MPA + S13, non OpenBDAP",
+        "MPA + OpenBDAP, non S13",
+        "Solo MPA",
+        "Altro controllo"
+      )
+    )
+  ) %>%
+  count(presenza_fonti, name = "n_record", .drop = FALSE) %>%
+  filter(n_record > 0) %>%
+  mutate(
+    totale_lista = sum(n_record),
+    quota_record = n_record / totale_lista,
+    quota_percentuale = round(100 * quota_record, 2)
+  )
+
+mpa_solo <- lista %>%
+  filter(
+    presente_mpa == 1,
+    is.na(presente_s13) | presente_s13 != 1,
+    is.na(presente_bdap) | presente_bdap != 1
+  ) %>%
+  arrange(codice_reg, ragione_sociale)
+
+mpa_s13_non_bdap <- lista %>%
+  filter(
+    presente_mpa == 1,
+    presente_s13 == 1,
+    is.na(presente_bdap) | presente_bdap != 1
+  ) %>%
+  arrange(codice_reg, ragione_sociale)
+
+mpa_bdap_non_s13 <- lista %>%
+  filter(
+    presente_mpa == 1,
+    presente_bdap == 1,
+    is.na(presente_s13) | presente_s13 != 1
+  ) %>%
+  arrange(codice_reg, ragione_sociale)
+
 #..............................................................................#
 #                     METADATI DELLA LISTA FINALE                           ####
 #..............................................................................#
@@ -784,181 +1109,398 @@ if (any(!merge_quality_check$esito)) {
 # una base strutturata: per ogni variabile finale indichiamo fonte, contenuto,
 # regola di costruzione e note di qualità.
 
-metadata_variabili <- tibble::tribble(
-  ~variabile, ~label, ~descrizione, ~fonte_originaria, ~campo_originario, ~tipo_variabile, ~regola_costruzione, ~priorita_fonti, ~note_qualita,
+metadata_variabili <- tribble(
+  ~nome_variabile, ~descrizione, ~fonte_prevalente, ~criterio_costruzione, ~uso_previsto,
   
   "codice_fiscale",
-  "Codice fiscale ente",
-  "Identificativo fiscale dell'amministrazione o del record amministrativo.",
+  "Codice fiscale dell'amministrazione. È la chiave principale utilizzata per il raccordo tra le fonti.",
   "MPA",
-  "CODICE_FISCALE",
-  "identificativo",
-  "Mantenuto dalla fonte MPA, che definisce il perimetro della lista.",
-  "MPA",
-  "Verificare nel log se CODICE_FISCALE identifica univocamente i record MPA.",
+  "Deriva dalla variabile CODICE_FISCALE della lista MPA. La lista finale mantiene il perimetro MPA.",
+  "Chiave primaria di raccordo tra fonti e dataset successivi.",
   
   "codice_reg",
-  "Codice regione",
-  "Codice regione associato all'ente o al record amministrativo.",
-  "MPA/BDAP/S13",
-  "CODICE_REG / Codice_Regione",
-  "identificativo territoriale",
-  "Valore selezionato con coalesce secondo priorità dichiarata.",
-  "MPA > BDAP > S13",
-  "Non usato come chiave di merge; mantenuto come informazione territoriale e controllo di coerenza tra fonti.",
+  "Codice regione associato all'amministrazione.",
+  "MPA",
+  "Valore selezionato con priorità MPA, poi OpenBDAP, poi S13.",
+  "Classificazioni territoriali e controlli di coerenza.",
   
   "fonte_codice_reg",
-  "Fonte codice regione",
-  "Fonte da cui proviene il valore finale del codice regione.",
-  "Pipeline",
+  "Fonte da cui deriva il valore finale di codice_reg.",
   "Derivata",
-  "audit",
-  "Derivata dalla prima fonte valorizzata secondo la priorità.",
-  "MPA > BDAP > S13",
-  "Serve per verificare se il codice regione finale proviene da MPA o da una fonte di fallback.",
+  "Assume il nome della prima fonte valorizzata secondo la priorità MPA > OpenBDAP > S13.",
+  "Tracciabilità della fonte del valore selezionato.",
   
   "ragione_sociale",
-  "Ragione sociale",
-  "Denominazione o ragione sociale dell'amministrazione.",
-  "MPA/BDAP/S13",
-  # "BDAP/MPA/S13",
-  "RAGIONE_SOCIALE",
-  "descrittiva",
-  "Valore selezionato con coalesce secondo priorità dichiarata.",
-  "MPA > BDAP > S13",
-  # "BDAP > MPA > S13",
-  "I conflitti tra fonti sono registrati nel foglio conflict_log.",
+  "Denominazione principale dell'amministrazione nella lista finale.",
+  "MPA",
+  "Valore selezionato con priorità MPA, poi OpenBDAP, poi S13.",
+  "Identificazione leggibile dell'unità istituzionale.",
   
   "fonte_ragione_sociale",
-  "Fonte ragione sociale",
-  "Fonte da cui proviene il valore finale della ragione sociale.",
-  "Pipeline",
+  "Fonte da cui deriva il valore finale di ragione_sociale.",
   "Derivata",
-  "audit",
-  "Derivata dalla prima fonte valorizzata secondo la priorità.",
-  "MPA > BDAP > S13",
-  # "BDAP > MPA > S13",
-  "Serve per tracciabilità leggera nella lista finale.",
+  "Assume il nome della prima fonte valorizzata secondo la priorità MPA > OpenBDAP > S13.",
+  "Tracciabilità della fonte del valore selezionato.",
   
   "fg",
-  "FG",
-  "Campo classificatorio presente nelle liste di input.",
-  "MPA/S13/BDAP",
-  "FG",
-  "classificatoria",
-  "Valore selezionato con coalesce secondo priorità dichiarata.",
-  "MPA > S13 > BDAP",
-  "Verificare nella documentazione delle fonti il significato esatto del campo.",
+  "Codice della forma giuridica/classificazione FG utilizzata nella lista MPA/S13.",
+  "MPA",
+  "Valore selezionato con priorità MPA, poi S13. La classificazione BDAP è mantenuta separatamente.",
+  "Classificazione principale dell'unità nel perimetro MPA.",
   
   "fonte_fg",
-  "Fonte FG",
-  "Fonte da cui proviene il valore finale del campo FG.",
-  "Pipeline",
+  "Fonte da cui deriva il valore finale di fg.",
   "Derivata",
-  "audit",
-  "Derivata dalla prima fonte valorizzata secondo la priorità.",
-  "MPA > S13 > BDAP",
-  "Serve per tracciabilità leggera nella lista finale.",
+  "Assume il nome della prima fonte valorizzata secondo la priorità MPA > S13.",
+  "Tracciabilità della fonte del valore selezionato.",
+  
+  "desc_fg",
+  "Descrizione testuale della classificazione FG.",
+  "MPA",
+  "Valore selezionato con priorità MPA, poi S13. La descrizione della forma giuridica BDAP è mantenuta separatamente.",
+  "Lettura e interpretazione della classificazione FG.",
+  
+  "fonte_desc_fg",
+  "Fonte da cui deriva il valore finale di desc_fg.",
+  "Derivata",
+  "Assume il nome della prima fonte valorizzata secondo la priorità MPA > S13.",
+  "Tracciabilità della fonte del valore selezionato.",
   
   "codice_unita_mpa",
-  "Codice unità MPA",
-  "Codice unità specifico della fonte MPA.",
+  "Codice unità presente nella lista MPA.",
   "MPA",
-  "CODICE_UNITA_UG oppure CODICE_UNITA",
-  "identificativo fonte-specifico",
-  "Rinominato dalla fonte MPA.",
-  "MPA",
-  "Da usare come identificativo interno MPA, non necessariamente come chiave generale.",
+  "Deriva da CODICE_UNITA_UG della lista MPA.",
+  "Raccordo con elaborazioni o classificazioni interne basate sulla lista MPA.",
   
   "codice_unita_s13",
-  "Codice unità S13",
-  "Codice unità specifico della fonte S13.",
+  "Codice unità presente nella lista S13.",
   "S13",
-  "CODICE_UNITA",
-  "identificativo fonte-specifico",
-  "Rinominato dalla fonte S13.",
-  "S13",
-  "Valorizzato solo per record MPA raccordati a S13.",
+  "Deriva da CODICE_UNITA della lista S13, quando disponibile dopo il raccordo per codice fiscale.",
+  "Raccordo con la lista S13 e controlli di coerenza.",
+  
+  "id_ente_bdap",
+  "Identificativo dell'ente in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Id_Ente di OpenBDAP, dopo selezione del record attivo in caso di storicizzazione.",
+  "Raccordo con OpenBDAP e fonti amministrative collegate.",
+  
+  "codice_ente_ipa",
+  "Codice ente IPA disponibile in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Codice_Ente_IPA di OpenBDAP.",
+  "Raccordo con IPA e dataset che utilizzano codici IPA.",
+  
+  "codice_ente_siope",
+  "Codice ente SIOPE disponibile in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Codice_Ente_SIOPE di OpenBDAP.",
+  "Raccordo con fonti SIOPE e dati contabili/amministrativi.",
+  
+  "codice_istat_comune",
+  "Codice ISTAT del comune associato all'ente in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Codice_ISTAT_Comune di OpenBDAP.",
+  "Analisi territoriali e raccordi con classificazioni comunali ISTAT.",
+  
+  "codice_comune",
+  "Codice comune disponibile in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Codice_Comune di OpenBDAP.",
+  "Informazione territoriale e raccordo con fonti comunali.",
+  
+  "comune",
+  "Denominazione del comune disponibile in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Dizione_Comune di OpenBDAP.",
+  "Descrizione territoriale.",
+  
+  "codice_provincia",
+  "Codice provincia disponibile in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Codice_Provincia di OpenBDAP.",
+  "Analisi territoriali provinciali.",
+  
+  "sigla_provincia",
+  "Sigla della provincia disponibile in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Sigla_Provincia di OpenBDAP.",
+  "Descrizione territoriale e visualizzazioni.",
+  
+  "provincia",
+  "Denominazione della provincia disponibile in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Dizione_Provincia di OpenBDAP.",
+  "Descrizione territoriale.",
+  
+  "codice_regione_bdap",
+  "Codice regione riportato in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Codice_Regione di OpenBDAP.",
+  "Controllo e confronto con il codice regione selezionato nella lista finale.",
+  
+  "regione_bdap",
+  "Denominazione della regione disponibile in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Dizione_Regione di OpenBDAP.",
+  "Descrizione territoriale.",
   
   "ateco_bdap",
-  "Codice ATECO BDAP",
-  "Codice ATECO associato all'ente nella fonte BDAP.",
-  "BDAP",
-  "Codice_ATECO",
-  "classificatoria",
-  "Rinominato dalla fonte BDAP.",
-  "BDAP",
-  "Valorizzato solo per record MPA raccordati a BDAP.",
+  "Codice ATECO dell'ente riportato in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Codice_ATECO di OpenBDAP.",
+  "Classificazione economica e possibili analisi settoriali.",
+  
+  "descr_ateco_bdap",
+  "Descrizione del codice ATECO riportata in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Descr_Codice_ATECO di OpenBDAP.",
+  "Interpretazione della classificazione ATECO.",
+  
+  "codice_forma_giuridica_bdap",
+  "Codice forma giuridica dell'ente secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Codice_Forma_Giuridica di OpenBDAP. È mantenuto separato da fg.",
+  "Classificazione amministrativa BDAP e confronto con FG MPA/S13.",
+  
+  "descr_forma_giuridica_bdap",
+  "Descrizione della forma giuridica dell'ente secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Descr_Forma_Giuridica di OpenBDAP. È mantenuta separata da desc_fg.",
+  "Interpretazione della classificazione amministrativa BDAP.",
+  
+  "codice_tipologia_siope_bdap",
+  "Codice tipologia SIOPE dell'ente secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Codice_Tipologia_SIOPE di OpenBDAP.",
+  "Raccordo con classificazioni SIOPE.",
+  
+  "descr_tipologia_siope_bdap",
+  "Descrizione della tipologia SIOPE dell'ente secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Descr_Tipologia_SIOPE di OpenBDAP.",
+  "Interpretazione della classificazione SIOPE.",
+  
+  "codice_categoria_ipa_bdap",
+  "Codice categoria IPA dell'ente secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Codice_Categoria_IPA di OpenBDAP.",
+  "Raccordo con classificazioni IPA.",
+  
+  "descr_categoria_ipa_bdap",
+  "Descrizione della categoria IPA dell'ente secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Descr_Categoria_IPA di OpenBDAP.",
+  "Interpretazione della classificazione IPA.",
+  
+  "codice_tipologia_ipa_bdap",
+  "Codice tipologia IPA dell'ente secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Codice_Tipologia_IPA di OpenBDAP.",
+  "Raccordo con classificazioni IPA.",
+  
+  "descr_tipologia_ipa_bdap",
+  "Descrizione della tipologia IPA dell'ente secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Descr_Tipologia_IPA di OpenBDAP.",
+  "Interpretazione della classificazione IPA.",
+  
+  "codice_tipologia_mtur_bdap",
+  "Codice tipologia MTUR dell'ente secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Codice_Tipologia_MTUR di OpenBDAP.",
+  "Raccordo con classificazioni MTUR, se rilevanti.",
+  
+  "descr_tipologia_mtur_bdap",
+  "Descrizione della tipologia MTUR dell'ente secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Descr_Tipologia_MTUR di OpenBDAP.",
+  "Interpretazione della classificazione MTUR.",
+  
+  "codice_tipologia_dt_bdap",
+  "Codice tipologia DT dell'ente secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Codice_Tipologia_DT di OpenBDAP.",
+  "Raccordo con classificazioni DT, se rilevanti.",
+  
+  "descr_tipologia_dt_bdap",
+  "Descrizione della tipologia DT dell'ente secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Descr_Tipologia_DT di OpenBDAP.",
+  "Interpretazione della classificazione DT.",
+  
+  "codice_tipologia_istat_s13_bdap",
+  "Codice tipologia ISTAT S13 riportato in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Codice_Tipologia_ISTAT_S13 di OpenBDAP.",
+  "Confronto con il perimetro S13 e classificazioni collegate.",
+  
+  "descr_tipologia_istat_s13_bdap",
+  "Descrizione della tipologia ISTAT S13 riportata in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Descr_Tipologia_ISTAT_S13 di OpenBDAP.",
+  "Interpretazione della classificazione ISTAT S13 riportata in BDAP.",
+  
+  "codice_tipologia_dlgs_118_2011_bdap",
+  "Codice tipologia secondo D.Lgs. 118/2011 riportato in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Codice_Tipologia_DLGS_118_2011 di OpenBDAP.",
+  "Raccordo con classificazioni amministrativo-contabili.",
+  
+  "descr_tipologia_dlgs_118_2011_bdap",
+  "Descrizione della tipologia secondo D.Lgs. 118/2011 riportata in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Descr_Tipologia_DLGS_118_2011 di OpenBDAP.",
+  "Interpretazione della classificazione D.Lgs. 118/2011.",
+  
+  "data_istituzione_bdap",
+  "Data di istituzione dell'ente secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Data_Istituzione di OpenBDAP.",
+  "Informazione storica/anagrafica.",
+  
+  "data_cessazione_bdap",
+  "Data di cessazione dell'ente secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Data_Cessazione di OpenBDAP.",
+  "Identificazione di record attivi o cessati.",
+  
+  "data_inclusione_siope_bdap",
+  "Data di inclusione dell'ente in SIOPE secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Data_Inclusione_SIOPE di OpenBDAP.",
+  "Tracciabilità della classificazione SIOPE.",
+  
+  "data_esclusione_siope_bdap",
+  "Data di esclusione dell'ente da SIOPE secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Data_Esclusione_SIOPE di OpenBDAP.",
+  "Tracciabilità della classificazione SIOPE.",
+  
+  "data_inclusione_ipa_bdap",
+  "Data di inclusione dell'ente in IPA secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Data_Inclusione_IPA di OpenBDAP.",
+  "Tracciabilità della classificazione IPA.",
+  
+  "data_esclusione_ipa_bdap",
+  "Data di esclusione dell'ente da IPA secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Data_Esclusione_IPA di OpenBDAP.",
+  "Tracciabilità della classificazione IPA.",
+  
+  "data_inclusione_istat_s13_bdap",
+  "Data di inclusione dell'ente nella tipologia ISTAT S13 secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Data_Inclusione_ISTAT_S13 di OpenBDAP.",
+  "Tracciabilità della classificazione ISTAT S13 in BDAP.",
+  
+  "data_esclusione_istat_s13_bdap",
+  "Data di esclusione dell'ente dalla tipologia ISTAT S13 secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Data_Esclusione_ISTAT_S13 di OpenBDAP.",
+  "Tracciabilità della classificazione ISTAT S13 in BDAP.",
+  
+  "data_inclusione_dlgs_118_2011_bdap",
+  "Data di inclusione dell'ente nella classificazione D.Lgs. 118/2011 secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Data_Inclusione_DLGS_118_2011 di OpenBDAP.",
+  "Tracciabilità della classificazione D.Lgs. 118/2011.",
+  
+  "data_esclusione_dlgs_118_2011_bdap",
+  "Data di esclusione dell'ente dalla classificazione D.Lgs. 118/2011 secondo OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Data_Esclusione_DLGS_118_2011 di OpenBDAP.",
+  "Tracciabilità della classificazione D.Lgs. 118/2011.",
+  
+  "url_bdap",
+  "URL dell'ente disponibile in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da URL di OpenBDAP.",
+  "Informazione anagrafica e possibile supporto alla consultazione.",
+  
+  "telefono_bdap",
+  "Numero di telefono dell'ente disponibile in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Telefono di OpenBDAP.",
+  "Informazione di contatto.",
+  
+  "fax_bdap",
+  "Numero di fax dell'ente disponibile in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da FAX di OpenBDAP.",
+  "Informazione di contatto.",
+  
+  "indirizzo_bdap",
+  "Indirizzo dell'ente disponibile in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Indirizzo di OpenBDAP.",
+  "Informazione anagrafica.",
+  
+  "cap_bdap",
+  "CAP dell'ente disponibile in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da CAP di OpenBDAP.",
+  "Informazione territoriale/anagrafica.",
+  
+  "nome_resp_bdap",
+  "Nome del responsabile riportato in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Nome_Resp di OpenBDAP.",
+  "Informazione anagrafica di contatto, da usare con cautela perché potenzialmente soggetta ad aggiornamenti.",
+  
+  "cogn_resp_bdap",
+  "Cognome del responsabile riportato in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Cogn_Resp di OpenBDAP.",
+  "Informazione anagrafica di contatto, da usare con cautela perché potenzialmente soggetta ad aggiornamenti.",
+  
+  "titolo_resp_bdap",
+  "Titolo/ruolo del responsabile riportato in OpenBDAP.",
+  "OpenBDAP",
+  "Deriva da Titolo_Resp di OpenBDAP.",
+  "Informazione anagrafica di contatto, da usare con cautela perché potenzialmente soggetta ad aggiornamenti.",
   
   "presente_mpa",
-  "Presenza in MPA",
-  "Indicatore di presenza nella fonte MPA.",
-  "MPA",
-  "presente_mpa",
-  "indicatore",
-  "Vale 1 per i record appartenenti al perimetro MPA.",
-  "MPA",
-  "Dovrebbe essere sempre valorizzato nella lista finale.",
+  "Indicatore di presenza dell'ente nella lista MPA.",
+  "Derivata",
+  "Assume valore 1 per tutti i record della lista finale, poiché MPA definisce il perimetro.",
+  "Controllo del perimetro della master list.",
   
   "presente_s13",
-  "Presenza in S13",
-  "Indicatore di presenza anche nella fonte S13.",
-  "S13",
-  "presente_s13",
-  "indicatore",
-  "Vale 1 se il record MPA trova corrispondenza in S13.",
-  "S13",
-  "Se mancante, il record MPA non è stato raccordato a S13.",
+  "Indicatore di presenza dell'ente nella lista S13.",
+  "Derivata",
+  "Assume valore 1 se il codice fiscale MPA trova corrispondenza nella lista S13.",
+  "Controllo di copertura tra MPA e S13.",
   
   "presente_bdap",
-  "Presenza in BDAP",
-  "Indicatore di presenza anche nella fonte BDAP.",
-  "BDAP",
-  "presente_bdap",
-  "indicatore",
-  "Vale 1 se il record MPA trova corrispondenza in BDAP.",
-  "BDAP",
-  "Se mancante, il record MPA non è stato raccordato a BDAP.", 
+  "Indicatore di presenza dell'ente in OpenBDAP.",
+  "Derivata",
+  "Assume valore 1 se il codice fiscale MPA trova corrispondenza in OpenBDAP dopo la deduplicazione dei record BDAP.",
+  "Controllo di copertura tra MPA e OpenBDAP.",
   
   "bdap_record_storicizzato",
-  "Record BDAP storicizzato",
-  "Indicatore che segnala se il codice fiscale aveva più righe in BDAP.",
-  "BDAP/Pipeline",
-  "Data_Cessazione",
-  "audit qualità",
-  "Vale 1 se BDAP conteneva più righe per lo stesso codice fiscale; per il merge è stata selezionata la riga attiva.",
-  "Riga attiva BDAP, definita da Data_Cessazione mancante o vuota",
-  "Le righe escluse sono conservate nel file audit.",
+  "Indicatore di presenza di più record OpenBDAP originari associati allo stesso codice fiscale.",
+  "Derivata da OpenBDAP",
+  "Assume valore 1 se in OpenBDAP erano presenti più righe per lo stesso codice fiscale prima della deduplicazione.",
+  "Tracciabilità dei casi storicizzati in OpenBDAP.",
   
   "bdap_storicizzazione_ambigua",
-  "Storicizzazione BDAP ambigua",
-  "Indicatore che segnala casi BDAP storicizzati con variazioni sostanziali di denominazione, forma giuridica, ATECO o regione.",
-  "BDAP/Pipeline",
-  "Derivata",
-  "audit qualità",
-  "Derivata dal confronto tra righe BDAP con stesso codice fiscale.",
-  "Pipeline",
-  "Serve a identificare casi da interpretare con cautela.",
+  "Indicatore di potenziale ambiguità nella storicizzazione OpenBDAP.",
+  "Derivata da OpenBDAP",
+  "Assume valore 1 se, tra i record BDAP storicizzati dello stesso codice fiscale, emergono variazioni potenzialmente rilevanti di denominazione, forma giuridica, ATECO o territorio.",
+  "Identificazione di casi da considerare con cautela nelle analisi.",
   
   "bdap_n_righe_originali",
-  "Numero righe BDAP originali",
-  "Numero di righe BDAP originariamente associate allo stesso codice fiscale.",
-  "BDAP/Pipeline",
-  "CODICE_FISCALE",
-  "audit qualità",
-  "Derivata prima della deduplica BDAP.",
-  "Pipeline",
-  "Valore maggiore di 1 indica record BDAP storicizzato o duplicato.",
+  "Numero di righe OpenBDAP originarie associate allo stesso codice fiscale.",
+  "Derivata da OpenBDAP",
+  "Calcolata prima della selezione del record BDAP attivo.",
+  "Documentazione della deduplicazione BDAP.",
   
   "run_id",
-  "Identificativo run",
-  "Identificativo temporale dell'esecuzione dello script.",
-  "Pipeline",
+  "Identificativo della run di produzione della lista.",
   "Derivata",
-  "audit",
-  "Creato con format(Sys.time(), '%Y%m%d_%H%M%S').",
-  "Pipeline",
-  "Serve per collegare lista, log e metadati."
+  "Generato automaticamente a partire da data e ora di esecuzione dello script.",
+  "Tracciabilità della versione prodotta."
 ) %>%
   mutate(run_id = RUN_ID, .before = 1)
 
@@ -980,8 +1522,9 @@ writexl::write_xlsx(
     lista = lista,
     metadata_variabili = metadata_variabili,
     coverage_log = coverage_log,
-    join_row_count_log = join_row_count_log,
+    source_overlap_log = source_overlap_log,
     merge_quality_check = merge_quality_check,
+    join_row_count_log = join_row_count_log,
     duplicate_keys_log = duplicate_keys_log,
     duplicate_pairs_log = duplicate_pairs_log,
     conflict_log = conflict_log,
@@ -994,6 +1537,9 @@ writexl::write_xlsx(
     bdap_dedup_rule_log = bdap_dedup_rule_log,
     bdap_storicizzazioni_ambigue = bdap_storicizzazioni_ambigue,
     bdap_rows_excluded_by_dedup = bdap_rows_excluded_by_dedup,
+    mpa_solo = mpa_solo,
+    mpa_s13_non_bdap = mpa_s13_non_bdap,
+    mpa_bdap_non_s13 = mpa_bdap_non_s13,
     s13_fuori_perimetro_mpa = s13_fuori_perimetro_mpa,
     bdap_fuori_perimetro_mpa = bdap_fuori_perimetro_mpa
   ),

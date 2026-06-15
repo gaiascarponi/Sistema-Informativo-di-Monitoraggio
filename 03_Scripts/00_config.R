@@ -10,6 +10,9 @@
 # Google Drive folder IDs
 DRIVE_ROOT_ID  <- "14jMYmLq78M-0LxuaIBAGao16ZhF59xDc"
 
+# E-mail associato a Google Drive 
+SIM_DRIVE_EMAIL <- "mipa.sistemainformativo@gmail.com"
+
 # Local project paths
 DRIVE_DIR_SOURCE    <- "01_Dataset/Source"
 DRIVE_DIR_PROCESSED <- "01_Dataset/Processed"
@@ -23,6 +26,7 @@ DRIVE_DIR_LOGS      <- "05_Logs"
 DRIVE_DIR_LOGS_CA   <- "05_Logs/Conto_annuale"
 
 DRIVE_DIR_DOCS      <- "06_Docs"
+DRIVE_DIR_DOCS      <- "06_Docs/Conto_annuale"
 
 
 # ============================================================

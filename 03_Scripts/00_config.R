@@ -14,8 +14,16 @@ DRIVE_ROOT_ID  <- "14jMYmLq78M-0LxuaIBAGao16ZhF59xDc"
 SIM_DRIVE_EMAIL <- "mipa.sistemainformativo@gmail.com"
 
 # Local project paths
+
 DRIVE_DIR_SOURCE    <- "01_Dataset/Source"
+DRIVE_DIR_SOURCE_ANAC <-  "01_Dataset/Source/ANAC"
+DRIVE_DIR_SOURCE_ANAC_GIC2023 <-  "01_Dataset/Source/ANAC/GIC 2023"
+
+
 DRIVE_DIR_PROCESSED <- "01_Dataset/Processed"
+DRIVE_DIR_PROCESSED_ANAC <- "01_Dataset/Processed/ANAC"
+DRIVE_DIR_PROCESSED_ANAC_CIG <-  "01_Dataset/Processed/ANAC/GIC"
+
 DRIVE_DIR_INDICATORI <- "01_Dataset/Indicatori"
 DRIVE_DIR_LISTS     <- "01_Dataset/Lists"
 DRIVE_DIR_METADATA  <- "02_Metadata"

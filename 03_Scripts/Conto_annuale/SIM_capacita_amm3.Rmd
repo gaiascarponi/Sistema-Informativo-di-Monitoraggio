@@ -1,0 +1,1272 @@
+---
+title: "SIM - Monitoraggio effetti PNRR Anno 2023"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: scroll
+    theme: cosmo
+params:
+  anno_ca: 2023
+---
+
+```{r setup, include=FALSE}
+# ================================================================
+# SIM - Capacità amministrativa della PA
+# Conto Annuale MEF/RGS
+#
+# Versione corretta:
+# - dati scaricati e letti in tempdir(), senza salvare dataset locali permanenti
+# - master a livello di singola istituzione
+# - indicatori su flussi, stock, età, formazione e spesa di formazione
+# ================================================================
+
+packages <- c(
+  "readr", "dplyr", "tidyr", "stringr", "purrr",
+  "ggplot2", "scales", "plotly", "DT",
+  "flexdashboard", "htmltools", "tibble",
+  "googledrive", "writexl", "readxl",
+  "here"
+)
+
+to_install <- packages[!packages %in% installed.packages()[, "Package"]]
+if(length(to_install) > 0) install.packages(to_install)
+
+invisible(lapply(packages, library, character.only = TRUE))
+
+# 1. PARAMETRI ----------------------------------------------------
+
+#drive_auth(scopes = "https://www.googleapis.com/auth/drive")
+
+anno_ca <- params$anno_ca
+
+url <- paste0(
+  "https://contoannuale.rgs.mef.gov.it/ext/CSV/",
+  anno_ca,
+  "Tutto.zip"
+)
+
+temp_folder <- here::here("07_Temp")
+
+if (!dir.exists(temp_folder)) {
+  dir.create(temp_folder, recursive = TRUE)
+}
+
+zip_file <- file.path(temp_folder, paste0(anno_ca, "Tutto.zip"))
+unzip_dir <- file.path(temp_folder, paste0(anno_ca, "Tutto"))
+
+options(timeout = 300)
+
+# Cartella Drive madre
+cartella_drive_root <- drive_get(
+  as_id("1VZSvdnxaG5UXvTrGJsOk-iAhB4dHnQJy")
+)
+
+# 2. FUNZIONI -----------------------------------------------------
+
+safe_sum <- function(x) sum(x, na.rm = TRUE)
+
+calc_weighted_mean <- function(x, w) {
+  if (all(is.na(x)) || sum(w, na.rm = TRUE) == 0) return(NA_real_)
+  weighted.mean(x, w = w, na.rm = TRUE)
+}
+
+format_value <- function(x, suffix = "", accuracy = 0.1) {
+  if (length(x) == 0 || is.na(x)) return("n.d.")
+  paste0(scales::number(x, accuracy = accuracy), suffix)
+}
+
+get_csv <- function(folder) {
+  list.files(
+    folder,
+    pattern = "\\.csv$",
+    full.names = TRUE,
+    ignore.case = TRUE,
+    recursive = TRUE
+  )
+}
+
+pick_dataset_anno <- function(lista, nome_base, anno_ca, flexible = FALSE) {
+  
+  if (flexible) {
+    pattern <- paste0(nome_base, ".*", anno_ca)
+  } else {
+    pattern <- paste0("^", nome_base, "_", anno_ca, "\\.CSV$")
+  }
+  
+  idx <- grep(pattern, names(lista), ignore.case = TRUE)
+  
+  if (length(idx) == 0) {
+    stop(paste("Dataset non trovato:", pattern))
+  }
+  
+  lista[[idx[1]]]
+}
+
+drive_get_or_create_folder <- function(folder_name, parent) {
+  
+  existing <- drive_ls(parent) %>%
+    filter(name == folder_name)
+  
+  if (nrow(existing) > 0) {
+    return(existing[1, ])
+  }
+  
+  drive_mkdir(
+    name = folder_name,
+    path = parent
+  )
+}
+
+drive_upload_if_missing <- function(local_file, drive_folder) {
+  
+  existing <- drive_ls(drive_folder) %>%
+    filter(name == basename(local_file))
+  
+  if (nrow(existing) == 0) {
+    drive_upload(
+      media = local_file,
+      path = drive_folder,
+      name = basename(local_file)
+    )
+  }
+}
+
+# 3. DRIVE COME ARCHIVIO, 07_TEMP COME AREA DI LAVORO -------------
+
+cartella_drive_conto_annuale <- drive_get_or_create_folder(
+  "Conto_annuale",
+  cartella_drive_root
+)
+
+cartella_drive_anno <- drive_get_or_create_folder(
+  paste0("CA_", anno_ca),
+  cartella_drive_conto_annuale
+)
+
+cartella_drive_anag <- drive_get_or_create_folder(
+  "Anagrafiche",
+  cartella_drive_anno
+)
+
+cartella_drive_dati <- drive_get_or_create_folder(
+  "Dati",
+  cartella_drive_anno
+)
+
+drive_files_anag <- drive_ls(cartella_drive_anag)
+drive_files_dati <- drive_ls(cartella_drive_dati)
+
+usa_drive <- nrow(drive_files_anag) > 0 && nrow(drive_files_dati) > 0
+
+local_anag_dir <- file.path(temp_folder, paste0("CA_", anno_ca), "Anagrafiche")
+local_dati_dir <- file.path(temp_folder, paste0("CA_", anno_ca), "Dati")
+
+dir.create(local_anag_dir, showWarnings = FALSE, recursive = TRUE)
+dir.create(local_dati_dir, showWarnings = FALSE, recursive = TRUE)
+
+if (usa_drive) {
+  
+  purrr::walk(
+    seq_len(nrow(drive_files_anag)),
+    ~ drive_download(
+      drive_files_anag[.x, ],
+      path = file.path(local_anag_dir, drive_files_anag$name[.x]),
+      overwrite = TRUE
+    )
+  )
+  
+  purrr::walk(
+    seq_len(nrow(drive_files_dati)),
+    ~ drive_download(
+      drive_files_dati[.x, ],
+      path = file.path(local_dati_dir, drive_files_dati$name[.x]),
+      overwrite = TRUE
+    )
+  )
+  
+} else {
+  
+  if (!file.exists(zip_file)) {
+    download.file(url, zip_file, mode = "wb")
+  }
+  
+  if (!dir.exists(unzip_dir)) {
+    unzip(zip_file, exdir = temp_folder)
+  }
+  
+  folders <- list.dirs(unzip_dir, recursive = TRUE)
+  
+  folder_anag <- folders[grepl("Anagrafiche$", folders)]
+  folder_dati <- folders[grepl("Dati$", folders)]
+  
+  files_anag_originali <- get_csv(folder_anag)
+  files_dati_originali <- get_csv(folder_dati)
+  
+  file.copy(
+    files_anag_originali,
+    local_anag_dir,
+    overwrite = TRUE
+  )
+  
+  file.copy(
+    files_dati_originali,
+    local_dati_dir,
+    overwrite = TRUE
+  )
+  
+  files_anag_locali <- get_csv(local_anag_dir)
+  files_dati_locali <- get_csv(local_dati_dir)
+  
+  purrr::walk(
+    files_anag_locali,
+    ~ drive_upload_if_missing(.x, cartella_drive_anag)
+  )
+  
+  purrr::walk(
+    files_dati_locali,
+    ~ drive_upload_if_missing(.x, cartella_drive_dati)
+  )
+}
+
+files_anag <- get_csv(local_anag_dir)
+files_dati <- get_csv(local_dati_dir)
+
+anag_list <- lapply(files_anag, function(f) {
+  readr::read_delim(f, delim = ";", show_col_types = FALSE)
+})
+names(anag_list) <- basename(files_anag)
+
+dati_list <- lapply(files_dati, function(f) {
+  readr::read_delim(
+    f,
+    delim = ";",
+    show_col_types = FALSE,
+    locale = readr::locale(decimal_mark = ",")
+  )
+})
+names(dati_list) <- basename(files_dati)
+
+# 4. SELEZIONE DATASET --------------------------------------------
+
+df_tipo_istituzione <- pick_dataset_anno(anag_list,"TipoIstituzione",anno_ca,flexible = TRUE)
+df_assunti     <- pick_dataset_anno(dati_list, "ASSUNTI", anno_ca)
+df_cessati     <- pick_dataset_anno(dati_list, "CESSATI", anno_ca)
+df_occupazione <- pick_dataset_anno(dati_list, "OCCUPAZIONE", anno_ca)
+df_eta_media   <- pick_dataset_anno(dati_list, "ETA_MEDIA", anno_ca)
+df_formazione  <- pick_dataset_anno(dati_list, "FORMAZIONE", anno_ca)
+df_costo_lavoro <- pick_dataset_anno(dati_list, "COSTO_LAVORO", anno_ca)
+anag_qualifiche <- pick_dataset_anno(anag_list, "ContrattoMacroCCategQualif", anno_ca,flexible = TRUE) #%>%
+    # select(
+    #   CODI_CONTRATTO,
+    #   CODI_CATEGORIA,
+    #   CODI_QUALIFICA,
+    #   DESC_MACROCATEGORIA,
+    #   DESC_CATEGORIA,
+    #   DESC_QUALIFICA
+    # ) %>%
+    # distinct()
+
+# 5. DATASET GUIDA: ISTITUZIONI -----------------------------------
+
+df_tipo_istituzione <- df_tipo_istituzione %>%
+  mutate(
+    ISTITUZIONE = paste0(CODI_TIPO_ISTITUZIONE, CODI_ISTITUZIONE)
+  )
+
+# 6. ASSUNTI -------------------------------------------------------
+
+assunti_agg <- df_assunti %>%
+  group_by(ISTITUZIONE) %>%
+  summarise(
+    ASSUN_UOMINI = safe_sum(UOMINI),
+    ASSUN_DONNE  = safe_sum(DONNE),
+    ASSUN_TOT    = ASSUN_UOMINI + ASSUN_DONNE,
+    .groups = "drop"
+  )
+
+# 7. CESSATI -------------------------------------------------------
+
+cessati_agg <- df_cessati %>%
+  group_by(ISTITUZIONE) %>%
+  summarise(
+    CESS_UOMINI = safe_sum(UOMINI),
+    CESS_DONNE  = safe_sum(DONNE),
+    CESS_TOT    = CESS_UOMINI + CESS_DONNE,
+    .groups = "drop"
+  )
+
+# 8. OCCUPAZIONE ---------------------------------------------------
+
+occupazione_agg <- df_occupazione %>%
+  group_by(ISTITUZIONE) %>%
+  summarise(
+    PERSONALE_TEMPO_PIENO_UOMINI = safe_sum(PERSONALE_TEMPO_PIENO_UOMINI),
+    PERSONALE_TEMPO_PIENO_DONNE  = safe_sum(PERSONALE_TEMPO_PIENO_DONNE),
+    `PART_TIME_INF50%_UOMINI`    = safe_sum(`PART_TIME_INF50%_UOMINI`),
+    `PART_TIME_INF50%_DONNE`     = safe_sum(`PART_TIME_INF50%_DONNE`),
+    `PART_TIME_SUP50%_UOMINI`    = safe_sum(`PART_TIME_SUP50%_UOMINI`),
+    `PART_TIME_SUP50%_DONNE`     = safe_sum(`PART_TIME_SUP50%_DONNE`),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    TOT_TEMPO_PIENO =
+      PERSONALE_TEMPO_PIENO_UOMINI +
+      PERSONALE_TEMPO_PIENO_DONNE,
+
+    TOT_PART_TIME =
+      `PART_TIME_INF50%_UOMINI` +
+      `PART_TIME_INF50%_DONNE` +
+      `PART_TIME_SUP50%_UOMINI` +
+      `PART_TIME_SUP50%_DONNE`,
+
+    PERSONALE_UOMINI =
+      PERSONALE_TEMPO_PIENO_UOMINI +
+      `PART_TIME_INF50%_UOMINI` +
+      `PART_TIME_SUP50%_UOMINI`,
+
+    PERSONALE_DONNE =
+      PERSONALE_TEMPO_PIENO_DONNE +
+      `PART_TIME_INF50%_DONNE` +
+      `PART_TIME_SUP50%_DONNE`,
+
+    PERSONALE_TOT = PERSONALE_UOMINI + PERSONALE_DONNE
+  )
+
+# 9. ETÀ, UNDER 35, OVER 55, OVER 65 -------------------------------
+
+eta_indicatori_pa <- df_eta_media %>%
+  mutate(
+    N_ETA = UOMINI + DONNE,
+    IS_UNDER35 = `Fascia Età` %in% c("E0", "E20", "E25", "E30"),
+    IS_OVER55  = `Fascia Età` %in% c("E55", "E60", "E65", "E68"),
+    IS_OVER65  = `Fascia Età` %in% c("E65", "E68")
+  ) %>%
+  group_by(ISTITUZIONE) %>%
+  summarise(
+    PERSONALE_ETA = safe_sum(N_ETA),
+
+    ETA_MEDIA_PA = ifelse(
+      PERSONALE_ETA == 0,
+      NA_real_,
+      (
+        sum(MEDIA_UOMINI * UOMINI, na.rm = TRUE) +
+        sum(MEDIA_DONNE  * DONNE,  na.rm = TRUE)
+      ) / PERSONALE_ETA
+    ),
+
+    UNDER35_UOMINI = sum(UOMINI[IS_UNDER35], na.rm = TRUE),
+    UNDER35_DONNE  = sum(DONNE[IS_UNDER35], na.rm = TRUE),
+    UNDER35        = UNDER35_UOMINI + UNDER35_DONNE,
+
+    OVER55_UOMINI = sum(UOMINI[IS_OVER55], na.rm = TRUE),
+    OVER55_DONNE  = sum(DONNE[IS_OVER55], na.rm = TRUE),
+    OVER55        = OVER55_UOMINI + OVER55_DONNE,
+
+    OVER65_UOMINI = sum(UOMINI[IS_OVER65], na.rm = TRUE),
+    OVER65_DONNE  = sum(DONNE[IS_OVER65], na.rm = TRUE),
+    OVER65        = OVER65_UOMINI + OVER65_DONNE,
+
+    QUOTA_UNDER35_PERC = ifelse(PERSONALE_ETA == 0, NA_real_, 100 * UNDER35 / PERSONALE_ETA),
+    QUOTA_UNDER35_UOMINI_PERC = ifelse(UNDER35 == 0, NA_real_, 100 * UNDER35_UOMINI / UNDER35),
+    QUOTA_UNDER35_DONNE_PERC  = ifelse(UNDER35 == 0, NA_real_, 100 * UNDER35_DONNE  / UNDER35),
+
+    QUOTA_OVER55_PERC = ifelse(PERSONALE_ETA == 0, NA_real_, 100 * OVER55 / PERSONALE_ETA),
+    QUOTA_OVER65_PERC = ifelse(PERSONALE_ETA == 0, NA_real_, 100 * OVER65 / PERSONALE_ETA),
+
+    INDICE_RICAMBIO_GENERAZIONALE = ifelse(OVER55 == 0, NA_real_, UNDER35 / OVER55),
+
+    .groups = "drop"
+  )
+
+# 10. FORMAZIONE ---------------------------------------------------
+# Interpretazione adottata:
+# FORM_UOMINI e FORM_DONNE sono giorni complessivi di formazione
+# già riportati a giorni lavorativi.
+
+required_form_cols <- c(
+  "ISTITUZIONE", "CONTRATTO", "CATEGORIA", "QUALIFICA",
+  "FORM_UOMINI", "FORM_DONNE", "FORM_MEDIA_UOMINI", "FORM_MEDIA_DONNE"
+)
+
+if (all(toupper(required_form_cols) %in% toupper(names(df_formazione)))) {
+
+
+  formazione_dettaglio <- df_formazione %>%
+    left_join(
+      anag_qualifiche,
+      by = c(
+        "CONTRATTO" = "CODI_CONTRATTO",
+        "CATEGORIA" = "CODI_CATEGORIA",
+        "QUALIFICA" = "CODI_QUALIFICA"
+      )
+    ) %>%
+    mutate(
+      GIORNI_FORM_UOMINI = FORM_UOMINI,
+      GIORNI_FORM_DONNE  = FORM_DONNE,
+      GIORNI_FORM_TOT    = GIORNI_FORM_UOMINI + GIORNI_FORM_DONNE
+    )
+
+  formazione_pa <- formazione_dettaglio %>%
+    group_by(ISTITUZIONE) %>%
+    summarise(
+      GIORNI_FORM_UOMINI = safe_sum(GIORNI_FORM_UOMINI),
+      GIORNI_FORM_DONNE  = safe_sum(GIORNI_FORM_DONNE),
+      GIORNI_FORM_TOT    = GIORNI_FORM_UOMINI + GIORNI_FORM_DONNE,
+
+      #FORM_MEDIA_UOMINI_CA = mean(FORM_MEDIA_UOMINI, na.rm = TRUE),
+      #FORM_MEDIA_DONNE_CA  = mean(FORM_MEDIA_DONNE,  na.rm = TRUE),
+
+      .groups = "drop"
+    )
+
+  formazione_macro_pa <- formazione_dettaglio %>%
+    group_by(ISTITUZIONE, DESC_MACROCATEGORIA) %>%
+    summarise(
+      GIORNI_FORM_UOMINI = safe_sum(GIORNI_FORM_UOMINI),
+      GIORNI_FORM_DONNE  = safe_sum(GIORNI_FORM_DONNE),
+      GIORNI_FORM_TOT    = GIORNI_FORM_UOMINI + GIORNI_FORM_DONNE,
+      .groups = "drop"
+    )
+
+} else {
+
+  formazione_pa <- df_tipo_istituzione %>%
+    transmute(
+      ISTITUZIONE,
+      GIORNI_FORM_UOMINI = NA_real_,
+      GIORNI_FORM_DONNE = NA_real_,
+      GIORNI_FORM_TOT = NA_real_,
+      # FORM_MEDIA_UOMINI_CA = NA_real_,
+      # FORM_MEDIA_DONNE_CA = NA_real_
+    )
+
+  formazione_macro_pa <- tibble::tibble(
+    ISTITUZIONE = character(),
+    DESC_MACROCATEGORIA = character(),
+    GIORNI_FORM_UOMINI = numeric(),
+    GIORNI_FORM_DONNE = numeric(),
+    GIORNI_FORM_TOT = numeric()
+  )
+}
+
+# 11. COSTO DEL LAVORO E SPESA DI FORMAZIONE ----------------------
+# La spesa di formazione viene individuata tramite la voce L020
+# Il codice è scritto in modo robusto rispetto a lievi variazioni nei nomi delle colonne
+
+if (!is.null(df_costo_lavoro)) {
+
+  voce_col <- names(df_costo_lavoro)[
+    stringr::str_detect(names(df_costo_lavoro), regex("^VOCE_SPESA$|CODI_VOCE_SPESA|VOCE", ignore_case = TRUE))
+  ][1]
+
+  spesa_col <- names(df_costo_lavoro)[
+    stringr::str_detect(names(df_costo_lavoro), regex("^TOTALE_SPESA$|TOTALE", ignore_case = TRUE))
+  ][1]
+
+  if (!is.na(voce_col) && !is.na(spesa_col) && "ISTITUZIONE" %in% names(df_costo_lavoro)) {
+
+    costo_lavoro_agg <- df_costo_lavoro %>%
+      mutate(
+        VOCE_SPESA_TMP = as.character(.data[[voce_col]]),
+        TOTALE_SPESA_TMP = as.numeric(.data[[spesa_col]])
+      ) %>%
+      group_by(ISTITUZIONE) %>%
+      summarise(
+        TOTALE_SPESA = safe_sum(TOTALE_SPESA_TMP),
+        SPESA_FORMAZIONE_L020 = safe_sum(ifelse(VOCE_SPESA_TMP == "L020", TOTALE_SPESA_TMP, 0)),
+        VOCE_SPESA_STR = paste(sort(unique(VOCE_SPESA_TMP[!is.na(VOCE_SPESA_TMP)])), collapse = "|"),
+        .groups = "drop"
+      )
+
+  } else {
+
+    costo_lavoro_agg <- df_tipo_istituzione %>%
+      transmute(
+        ISTITUZIONE,
+        TOTALE_SPESA = NA_real_,
+        SPESA_FORMAZIONE_L020 = NA_real_,
+        VOCE_SPESA_STR = NA_character_
+      )
+  }
+
+} else {
+
+  costo_lavoro_agg <- df_tipo_istituzione %>%
+    transmute(
+      ISTITUZIONE,
+      TOTALE_SPESA = NA_real_,
+      SPESA_FORMAZIONE_L020 = NA_real_,
+      VOCE_SPESA_STR = NA_character_
+    )
+}
+
+# 12. DATASET MASTER ----------------------------------------------
+
+# Import lista MPA
+
+cartella_liste <- drive_get(
+  as_id("15Y8dcyzbFOEdIJc0wRszx9uJT16kqyEs")
+)
+
+file_MPA <- drive_find(
+  pattern = "11 05 2026 Lista MPA_2025.xlsx",
+  q = paste0("'", cartella_liste$id, "' in parents"),
+  n_max = 1
+)
+
+file_MPA_local <- file.path(
+  temp_folder,
+  "lista_MPA.xlsx"
+)
+
+drive_download(
+  file_MPA,
+  path = file_MPA_local,
+  overwrite = TRUE
+)
+
+MPA <- readxl::read_excel(file_MPA_local)
+
+rm(
+  file_MPA,
+  file_MPA_local,
+  cartella_liste
+)
+
+
+# join al dataset guida anagrafico df_tipo_istituzione
+ base_pa <- df_tipo_istituzione %>%
+  left_join(assunti_agg, by = "ISTITUZIONE") %>%
+  left_join(cessati_agg, by = "ISTITUZIONE") %>%
+  left_join(occupazione_agg, by = "ISTITUZIONE") %>%
+  left_join(eta_indicatori_pa, by = "ISTITUZIONE") %>%
+  left_join(formazione_pa, by = "ISTITUZIONE") %>%
+  left_join(costo_lavoro_agg, by = "ISTITUZIONE") %>%
+  mutate(
+    across(
+      any_of(c(
+        "ASSUN_UOMINI", "ASSUN_DONNE", "ASSUN_TOT",
+        "CESS_UOMINI", "CESS_DONNE", "CESS_TOT",
+        "PERSONALE_TEMPO_PIENO_UOMINI", "PERSONALE_TEMPO_PIENO_DONNE",
+        "PART_TIME_INF50%_UOMINI", "PART_TIME_INF50%_DONNE",
+        "PART_TIME_SUP50%_UOMINI", "PART_TIME_SUP50%_DONNE",
+        "TOT_TEMPO_PIENO", "TOT_PART_TIME",
+        "PERSONALE_UOMINI", "PERSONALE_DONNE", "PERSONALE_TOT",
+        "UNDER35_UOMINI", "UNDER35_DONNE", "UNDER35",
+        "OVER55_UOMINI", "OVER55_DONNE", "OVER55",
+        "OVER65_UOMINI", "OVER65_DONNE", "OVER65",
+        "GIORNI_FORM_UOMINI", "GIORNI_FORM_DONNE", "GIORNI_FORM_TOT",
+        "TOTALE_SPESA", "SPESA_FORMAZIONE_L020"
+      )),
+      ~ tidyr::replace_na(.x, 0)
+    ),
+    
+    SALDO_ASS_CESS = ASSUN_TOT - CESS_TOT,
+    
+    ANNO = anno_ca,
+
+    TURNOVER_PERC = ifelse(
+      PERSONALE_TOT == 0,
+      NA_real_,
+      100 * (ASSUN_TOT + CESS_TOT) / PERSONALE_TOT
+    ),
+
+    TASSO_CRESCITA_PERC = ifelse(
+      PERSONALE_TOT == 0,
+      NA_real_,
+      100 * (ASSUN_TOT - CESS_TOT) / PERSONALE_TOT
+    ),
+
+    PERC_DONNE = ifelse(
+      PERSONALE_TOT == 0,
+      NA_real_,
+      100 * PERSONALE_DONNE / PERSONALE_TOT
+    ),
+
+    PERC_PART_TIME = ifelse(
+      PERSONALE_TOT == 0,
+      NA_real_,
+      100 * TOT_PART_TIME / PERSONALE_TOT
+    ),
+
+    GIORNI_FORM_PER_DIPENDENTE = ifelse(
+      PERSONALE_TOT == 0,
+      NA_real_,
+      GIORNI_FORM_TOT / PERSONALE_TOT
+    ),
+
+    GIORNI_FORM_UOMINI_PER_DIPENDENTE_UOMO = ifelse(
+      PERSONALE_UOMINI == 0,
+      NA_real_,
+      GIORNI_FORM_UOMINI / PERSONALE_UOMINI
+    ),
+
+    GIORNI_FORM_DONNE_PER_DIPENDENTE_DONNA = ifelse(
+      PERSONALE_DONNE == 0,
+      NA_real_,
+      GIORNI_FORM_DONNE / PERSONALE_DONNE
+    ),
+
+    QUOTA_GIORNI_FORM_DONNE_PERC = ifelse(
+      GIORNI_FORM_TOT == 0,
+      NA_real_,
+      100 * GIORNI_FORM_DONNE / GIORNI_FORM_TOT
+    ),
+
+    QUOTA_GIORNI_FORM_UOMINI_PERC = ifelse(
+      GIORNI_FORM_TOT == 0,
+      NA_real_,
+      100 * GIORNI_FORM_UOMINI / GIORNI_FORM_TOT
+    ),
+
+    SPESA_FORMAZIONE_PER_DIPENDENTE = ifelse(
+      PERSONALE_TOT == 0,
+      NA_real_,
+      SPESA_FORMAZIONE_L020 / PERSONALE_TOT
+    ),
+
+    INCIDENZA_SPESA_FORMAZIONE_PERC = ifelse(
+      TOTALE_SPESA == 0,
+      NA_real_,
+      100 * SPESA_FORMAZIONE_L020 / TOTALE_SPESA
+    ),
+
+    SPESA_FORMAZIONE_PER_GIORNO = ifelse(
+      GIORNI_FORM_TOT == 0,
+      NA_real_,
+      SPESA_FORMAZIONE_L020 / GIORNI_FORM_TOT
+    )
+  )
+
+MPA <- MPA %>%
+  mutate(
+    CODICE_FISCALE = trimws(as.character(CODICE_FISCALE))
+  )
+
+base_pa <- base_pa %>%
+  mutate(
+    CODI_FISCALE = trimws(as.character(CODI_FISCALE))
+  )
+
+base_pa <- base_pa %>%
+  semi_join(
+    MPA,
+    by = c("CODI_FISCALE" = "CODICE_FISCALE")
+  )
+
+# Copertura MPA
+# sum(
+#   base_pa$CODI_FISCALE %in% MPA$CODICE_FISCALE,
+#   na.rm = TRUE
+# )
+# 4410
+# nrow(base_pa)
+# [1] 12255
+# > 4410/12255*100
+# [1] 35.98531
+
+# cat(
+#      "Istituzioni CA:",
+#      nrow(base_pa),
+#      "\nMatch MPA:",
+#      sum(base_pa$CODI_FISCALE %in% MPA$CODICE_FISCALE),
+#       "\nCopertura:",
+#       sum(base_pa$CODI_FISCALE %in% MPA$CODICE_FISCALE)/nrow(base_pa)*100
+#  )
+# Istituzioni CA: 12255 
+# Match MPA: 4410 
+# Copertura: 35.98531
+
+
+# Salvataggio master_CA in Drive dentro:
+# Processed files / Conto_annuale
+
+cartella_processed <- drive_get(
+  as_id("1VJhXYt47x74dc2zaEgkvz6YSw39BTMai")
+)
+
+cartella_processed_conto_annuale <- drive_get_or_create_folder(
+  folder_name = "Conto_annuale",
+  parent = cartella_processed
+)
+
+tmp_xlsx <- tempfile(fileext = ".xlsx")
+
+writexl::write_xlsx(
+  base_pa,
+  tmp_xlsx
+)
+
+drive_upload(
+  media = tmp_xlsx,
+  path = cartella_processed_conto_annuale,
+  name = paste0("master_CA_MPA_", anno_ca, ".xlsx"),
+  overwrite = TRUE
+)
+
+unlink(tmp_xlsx)
+
+# 13. AGGREGAZIONI DASHBOARD --------------------------------------
+
+# overview nazionale
+nazionale <- base_pa %>%
+  summarise(
+    TOTALE_ASSUNTI = safe_sum(ASSUN_TOT),
+    TOTALE_CESSATI = safe_sum(CESS_TOT),
+    PERSONALE_TOTALE = safe_sum(PERSONALE_TOT),
+    SALDO = TOTALE_ASSUNTI - TOTALE_CESSATI,
+    TURNOVER_TOT = ifelse(
+      PERSONALE_TOTALE == 0,
+      NA_real_,
+      (TOTALE_ASSUNTI + TOTALE_CESSATI) / PERSONALE_TOTALE * 100
+    ),
+    ETA_MEDIA_PA = calc_weighted_mean(ETA_MEDIA_PA, PERSONALE_TOT),
+    QUOTA_UNDER35 = ifelse(
+      all(is.na(QUOTA_UNDER35_PERC)),
+      NA_real_,
+      #calc_weighted_mean(QUOTA_UNDER35_PERC, PERSONALE_TOT)
+      100 * safe_sum(UNDER35) / PERSONALE_TOTALE
+    ),
+    GIORNI_FORM_TOT = safe_sum(GIORNI_FORM_TOT),#cambiare nome a GIORNI_FORM_PA
+    GIORNI_FORM_PER_DIPENDENTE = ifelse(
+      PERSONALE_TOTALE == 0,
+      NA_real_,
+      GIORNI_FORM_TOT / PERSONALE_TOTALE
+    ),
+    SPESA_FORMAZIONE_L020 = safe_sum(SPESA_FORMAZIONE_L020), #cambiare nome a SPESA_FORMAZIONE_L020_PA
+    SPESA_FORMAZIONE_PER_DIPENDENTE = ifelse(
+      PERSONALE_TOTALE == 0,
+      NA_real_,
+      SPESA_FORMAZIONE_L020 / PERSONALE_TOTALE
+    )
+  )
+
+# aggregazione tra tipologie di amministrazione / ordine per numerosità personale
+confronto_tipo_pa <- base_pa %>%
+  filter(!is.na(DESC_TIPO_ISTITUZIONE)) %>%
+  group_by(DESC_TIPO_ISTITUZIONE) %>%
+  summarise(
+    ASSUNTI = safe_sum(ASSUN_TOT),
+    CESSATI = safe_sum(CESS_TOT),
+    SALDO = safe_sum(SALDO_ASS_CESS),
+    PERSONALE = safe_sum(PERSONALE_TOT),
+    TURNOVER = ifelse(PERSONALE == 0, NA_real_, (ASSUNTI + CESSATI) / PERSONALE * 100),
+    TASSO_CRESCITA = ifelse(PERSONALE == 0, NA_real_, SALDO / PERSONALE * 100),
+    ETA_MEDIA = calc_weighted_mean(ETA_MEDIA_PA, PERSONALE_TOT),
+    # QUOTA_UNDER35 = ifelse(
+    #   all(is.na(QUOTA_UNDER35_PERC)),
+    #   NA_real_,
+    #   calc_weighted_mean(QUOTA_UNDER35_PERC, PERSONALE_TOT)
+    # ),
+    UNDER35 = safe_sum(UNDER35),
+    QUOTA_UNDER35 = ifelse(
+    PERSONALE == 0,
+    NA_real_,
+    100 * UNDER35 / PERSONALE
+    ),
+    PERC_DONNE = calc_weighted_mean(PERC_DONNE, PERSONALE_TOT),
+    PERC_PART_TIME = calc_weighted_mean(PERC_PART_TIME, PERSONALE_TOT),
+    GIORNI_FORM_TOT = safe_sum(GIORNI_FORM_TOT),
+    GIORNI_FORM_PER_DIPENDENTE = ifelse(PERSONALE == 0, NA_real_, GIORNI_FORM_TOT / PERSONALE),
+    SPESA_FORMAZIONE_L020 = safe_sum(SPESA_FORMAZIONE_L020),
+    SPESA_FORMAZIONE_PER_DIPENDENTE = ifelse(PERSONALE == 0, NA_real_, SPESA_FORMAZIONE_L020 / PERSONALE),
+    INCIDENZA_SPESA_FORMAZIONE_PERC = ifelse(
+      safe_sum(TOTALE_SPESA) == 0,
+      NA_real_,
+      100 * SPESA_FORMAZIONE_L020 / safe_sum(TOTALE_SPESA)
+    ),
+    .groups = "drop"
+  ) %>%
+  filter(PERSONALE > 0) %>%
+  arrange(desc(PERSONALE))
+
+# Top 30 PA con maggiore movimentazione del personale
+top_pa_turnover <- base_pa %>%
+  filter(PERSONALE_TOT >= 100) %>% # elimino PA troppo piccole
+  arrange(desc(TURNOVER_PERC)) %>% # mette prima le PA con turnover più alto
+  select(
+    DESC_ISTITUZIONE,
+    DESC_TIPO_ISTITUZIONE,
+    PERSONALE_TOT,
+    ASSUN_TOT,
+    CESS_TOT,
+    SALDO_ASS_CESS,
+    TURNOVER_PERC,
+    TASSO_CRESCITA_PERC,
+    ETA_MEDIA_PA,
+    QUOTA_UNDER35_PERC,
+    PERC_DONNE,
+    PERC_PART_TIME,
+    GIORNI_FORM_PER_DIPENDENTE,
+    SPESA_FORMAZIONE_PER_DIPENDENTE
+  ) %>%
+  head(30)
+
+# Individuazione di segnali di attenzione a livello di singola PA
+segnali_pa <- base_pa %>%
+  filter(PERSONALE_TOT >= 100) %>%
+  mutate(
+    BASSO_TURNOVER = ifelse(
+      is.na(TURNOVER_PERC),
+      FALSE,
+      TURNOVER_PERC < 2
+    ),
+    
+    SALDO_NEGATIVO = ifelse(
+      is.na(SALDO_ASS_CESS),
+      FALSE,
+      SALDO_ASS_CESS < 0
+    ),
+    
+    ALTA_ETA_MEDIA = ifelse(
+      is.na(ETA_MEDIA_PA),
+      FALSE,
+      ETA_MEDIA_PA >= 55
+    ),
+    
+    BASSA_QUOTA_UNDER35 = ifelse(
+      is.na(QUOTA_UNDER35_PERC),
+      FALSE,
+      QUOTA_UNDER35_PERC < 5
+    ),
+    
+    N_SEGNALI =
+      as.integer(BASSO_TURNOVER) +
+      as.integer(SALDO_NEGATIVO) +
+      as.integer(ALTA_ETA_MEDIA) +
+      as.integer(BASSA_QUOTA_UNDER35)
+  ) %>%
+  filter(N_SEGNALI > 0) %>%
+  arrange(desc(N_SEGNALI), desc(PERSONALE_TOT)) %>%
+  select(
+    DESC_ISTITUZIONE,
+    DESC_TIPO_ISTITUZIONE,
+    PERSONALE_TOT,
+    TURNOVER_PERC,
+    ETA_MEDIA_PA,
+    QUOTA_UNDER35_PERC,
+    SALDO_ASS_CESS,
+    BASSO_TURNOVER,
+    SALDO_NEGATIVO,
+    ALTA_ETA_MEDIA,
+    BASSA_QUOTA_UNDER35,
+    N_SEGNALI
+  )
+
+# if (!is.null(df_geo) && all(c("REGIONE", "UOMINI", "DONNE") %in% names(df_geo))) {
+#   geo_regione <- df_geo %>%
+#     group_by(REGIONE) %>%
+#     summarise(
+#       PERSONALE_GEO = safe_sum(UOMINI) + safe_sum(DONNE),
+#       .groups = "drop"
+#     ) %>%
+#     arrange(desc(PERSONALE_GEO))
+# } else {
+#   geo_regione <- tibble::tibble(
+#     REGIONE = character(),
+#     PERSONALE_GEO = numeric()
+#   )
+# }
+
+indicatori_mancanti <- c()
+if (all(is.na(base_pa$ETA_MEDIA_PA))) indicatori_mancanti <- c(indicatori_mancanti, "età media")
+if (all(is.na(base_pa$QUOTA_UNDER35_PERC))) indicatori_mancanti <- c(indicatori_mancanti, "quota under 35")
+# if (nrow(geo_regione) == 0) indicatori_mancanti <- c(indicatori_mancanti, "aggregazione territoriale")
+if (all(is.na(base_pa$SPESA_FORMAZIONE_L020))) indicatori_mancanti <- c(indicatori_mancanti, "spesa formazione L020")
+```
+
+Overview nazionale
+=======================================================================
+
+Column {data-width=200}
+-----------------------------------------------------------------------
+
+### Assunzioni totali
+
+```{r}
+valueBox(
+  value = scales::comma(nazionale$TOTALE_ASSUNTI, accuracy = 1),
+  caption = "Assunzioni totali",
+  icon = "fa-user-plus",
+  color = "primary"
+)
+```
+
+### Tasso di turnover
+
+```{r}
+valueBox(
+  value = format_value(nazionale$TURNOVER_TOT, suffix = "%", accuracy = 0.1),
+  caption = "Turnover",
+  icon = "fa-refresh",
+  color = "info"
+)
+```
+
+Column {data-width=250}
+-----------------------------------------------------------------------
+
+### Età media 
+
+```{r}
+valueBox(
+  value = format_value(nazionale$ETA_MEDIA_PA, accuracy = 0.1),
+  caption = "Età media del personale",
+  icon = "fa-calendar",
+  color = "warning"
+)
+```
+
+### Quota under 35
+
+```{r}
+valueBox(
+  value = format_value(nazionale$QUOTA_UNDER35, suffix = "%", accuracy = 0.1),
+  caption = "Quota di personale under 35",
+  icon = "fa-users",
+  color = "success"
+)
+```
+
+Column {data-width=550}
+-----------------------------------------------------------------------
+### Assunti per tipologia di istituzione
+
+```{r}
+p1 <- confronto_tipo_pa %>%
+  arrange(desc(ASSUNTI)) %>%
+  slice_head(n = 15) %>%
+  ggplot(aes(x = reorder(DESC_TIPO_ISTITUZIONE, ASSUNTI), y = ASSUNTI)) +
+  geom_col() +
+  coord_flip() +
+  scale_y_continuous(labels = scales::comma) +
+  labs(x = NULL, y = "Assunti", title = "Totale assunti per tipologia di istituzione") +
+  theme_minimal()
+
+plotly::ggplotly(p1)
+```
+
+Confronto e benchmark
+=======================================================================
+
+Column
+-----------------------------------------------------------------------
+
+### Nota
+
+```{r, results='asis'}
+htmltools::div(
+  style = "padding:12px; background-color:#e2e3e5; border:1px solid #d6d8db; border-radius:6px;",
+  "Versione in progress",
+)
+```
+
+<!-- ### Turnover per tipologia di istituzione -->
+
+<!-- ```{r} -->
+<!-- p2 <- confronto_tipo_pa %>% -->
+<!--   arrange(desc(TURNOVER)) %>% -->
+<!--   slice_head(n = 20) %>% -->
+<!--   ggplot(aes(x = reorder(DESC_TIPO_ISTITUZIONE, TURNOVER), y = TURNOVER)) + -->
+<!--   geom_col() + -->
+<!--   coord_flip() + -->
+<!--   labs(x = NULL, y = "Turnover (%)", title = "Turnover aggregato per tipologia di istituzione") + -->
+<!--   theme_minimal() -->
+
+<!-- plotly::ggplotly(p2) -->
+<!-- ``` -->
+
+<!-- Column -->
+<!-- ----------------------------------------------------------------------- -->
+
+<!-- ### Ranking singole PA -->
+
+<!-- ```{r} -->
+<!-- DT::datatable( -->
+<!--   top_pa_turnover, -->
+<!--   rownames = FALSE, -->
+<!--   filter = "top", -->
+<!--   options = list(pageLength = 10, scrollX = TRUE) -->
+<!-- ) %>% -->
+<!--   DT::formatRound( -->
+<!--     columns = c("TURNOVER_PERC", "TASSO_CRESCITA_PERC", "ETA_MEDIA_PA", "QUOTA_UNDER35_PERC", "PERC_DONNE", "PERC_PART_TIME"), -->
+<!--     digits = 2 -->
+<!--   ) %>% -->
+<!--   DT::formatRound( -->
+<!--     columns = c("PERSONALE_TOT", "ASSUN_TOT", "CESS_TOT", "SALDO_ASS_CESS"), -->
+<!--     digits = 0 -->
+<!--   ) -->
+<!-- ``` -->
+
+<!-- Monitoraggio territoriale -->
+<!-- ======================================================================= -->
+
+<!-- Column -->
+<!-- ----------------------------------------------------------------------- -->
+
+<!-- ### Distribuzione regionale dello stock di personale -->
+
+<!-- ```{r} -->
+<!-- if (nrow(geo_regione) > 0) { -->
+<!--   p3 <- geo_regione %>% -->
+<!--     ggplot(aes(x = reorder(REGIONE, PERSONALE_GEO), y = PERSONALE_GEO)) + -->
+<!--     geom_col() + -->
+<!--     coord_flip() + -->
+<!--     scale_y_continuous(labels = scales::comma) + -->
+<!--     labs( -->
+<!--       x = NULL, -->
+<!--       y = "Personale", -->
+<!--       title = "Distribuzione regionale del personale" -->
+<!--     ) + -->
+<!--     theme_minimal() -->
+
+<!--   plotly::ggplotly(p3) -->
+<!-- } else { -->
+<!--   htmltools::div("Dataset DISTRIBUZIONE_GEOGRAFICA non disponibile.") -->
+<!-- } -->
+<!-- ``` -->
+
+<!-- Column -->
+<!-- ----------------------------------------------------------------------- -->
+
+<!-- ### Nota metodologica -->
+
+<!-- ```{r, results='asis'} -->
+<!-- htmltools::div( -->
+<!--   style = "padding:12px; background-color:#e2e3e5; border:1px solid #d6d8db; border-radius:6px;", -->
+<!--   "La parte territoriale qui usa il dataset DISTRIBUZIONE_GEOGRAFICA e misura lo stock di personale per regione. ", -->
+<!--   "Per regionalizzare turnover, assunti e cessati serve una chiave territoriale coerente a livello di singola PA oppure flussi assunzioni/cessazioni territorializzati." -->
+<!-- ) -->
+<!-- ``` -->
+
+Composizione del personale
+=======================================================================
+
+Column
+-----------------------------------------------------------------------
+
+### Percentuale donne
+
+```{r}
+p4 <- confronto_tipo_pa %>%
+  arrange(desc(PERC_DONNE)) %>%
+  slice_head(n = 20) %>%
+  ggplot(aes(x = reorder(DESC_TIPO_ISTITUZIONE, PERC_DONNE), y = PERC_DONNE)) +
+  geom_col() +
+  coord_flip() +
+  labs(x = NULL, y = "% donne", title = "Percentuale donne per tipologia di istituzione") +
+  theme_minimal()
+
+plotly::ggplotly(p4)
+```
+
+Column
+-----------------------------------------------------------------------
+
+### Incidenza part-time
+
+```{r}
+p5 <- confronto_tipo_pa %>%
+  arrange(desc(PERC_PART_TIME)) %>%
+  slice_head(n = 20) %>%
+  ggplot(aes(x = reorder(DESC_TIPO_ISTITUZIONE, PERC_PART_TIME), y = PERC_PART_TIME)) +
+  geom_col() +
+  coord_flip() +
+  labs(x = NULL, y = "% part-time", title = "Incidenza part-time per tipologia di istituzione") +
+  theme_minimal()
+
+plotly::ggplotly(p5)
+```
+
+
+Formazione e spesa
+=======================================================================
+
+Column {data-width=250}
+-----------------------------------------------------------------------
+
+### Giorni di formazione totali
+
+```{r}
+valueBox(
+  value = scales::comma(nazionale$GIORNI_FORM_TOT, accuracy = 1),
+  caption = "Giorni di formazione",
+  icon = "fa-graduation-cap",
+  color = "primary"
+)
+```
+
+### Giorni formazione per dipendente
+
+```{r}
+valueBox(
+  value = format_value(nazionale$GIORNI_FORM_PER_DIPENDENTE, accuracy = 0.01),
+  caption = "Giorni per dipendente",
+  icon = "fa-clock-o",
+  color = "info"
+)
+```
+
+Column {data-width=250}
+-----------------------------------------------------------------------
+
+### Spesa formazione
+
+```{r}
+valueBox(
+  value = scales::comma(nazionale$SPESA_FORMAZIONE_L020, accuracy = 1),
+  caption = "Spesa formazione L020",
+  icon = "fa-euro",
+  color = "success"
+)
+```
+
+### Spesa formazione per dipendente
+
+```{r}
+valueBox(
+  value = format_value(nazionale$SPESA_FORMAZIONE_PER_DIPENDENTE, accuracy = 0.1),
+  caption = "Spesa formazione per dipendente",
+  icon = "fa-calculator",
+  color = "warning"
+)
+```
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Giorni di formazione per dipendente per tipologia di istituzione
+
+```{r}
+p_form1 <- confronto_tipo_pa %>%
+  arrange(desc(GIORNI_FORM_PER_DIPENDENTE)) %>%
+  slice_head(n = 20) %>%
+  ggplot(aes(
+    x = reorder(DESC_TIPO_ISTITUZIONE, GIORNI_FORM_PER_DIPENDENTE),
+    y = GIORNI_FORM_PER_DIPENDENTE
+  )) +
+  geom_col(
+    fill = "#2C7FB8"
+  ) +
+  coord_flip() +
+  labs(
+    x = NULL,
+    y = "Giorni per dipendente",
+    title = "Giorni di formazione per dipendente"
+  ) +
+  theme_minimal()
+
+plotly::ggplotly(p_form1)
+```
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Spesa formazione per dipendente per tipologia di istituzione
+
+```{r}
+p_form2 <- confronto_tipo_pa %>%
+  arrange(desc(SPESA_FORMAZIONE_PER_DIPENDENTE)) %>%
+  slice_head(n = 20) %>%
+  ggplot(aes(
+    x = reorder(DESC_TIPO_ISTITUZIONE, SPESA_FORMAZIONE_PER_DIPENDENTE),
+    y = SPESA_FORMAZIONE_PER_DIPENDENTE
+  )) +
+  geom_col(
+    fill = "#2C7FB8"
+  ) +
+  coord_flip() +
+  labs(
+    x = NULL,
+    y = "Spesa per dipendente",
+    title = "Spesa di formazione per dipendente"
+  ) +
+  theme_minimal()
+
+plotly::ggplotly(p_form2)
+```
+
+
+Trend e riforma nel tempo
+=======================================================================
+
+Column
+-----------------------------------------------------------------------
+
+### Nota
+
+```{r, results='asis'}
+htmltools::div(
+  style = "padding:12px; background-color:#e2e3e5; border:1px solid #d6d8db; border-radius:6px;",
+  "Questa versione lavora su un solo anno. ",
+  #"Per produrre un trend è sufficiente ripetere la funzione di lettura per più valori di anno_ca e aggiungere la variabile ANNO al master base_pa."
+)
+```
+
+### Indicatori disponibili per l'anno selezionato
+
+```{r}
+trend_template <- tibble::tibble(
+  ANNO = anno_ca,
+  TOTALE_ASSUNTI = nazionale$TOTALE_ASSUNTI,
+  TOTALE_CESSATI = nazionale$TOTALE_CESSATI,
+  SALDO = nazionale$SALDO,
+  PERSONALE_TOTALE = nazionale$PERSONALE_TOTALE,
+  TURNOVER_TOT = nazionale$TURNOVER_TOT,
+  ETA_MEDIA_PA = nazionale$ETA_MEDIA_PA,
+  QUOTA_UNDER35 = nazionale$QUOTA_UNDER35,
+  GIORNI_FORM_PER_DIPENDENTE = nazionale$GIORNI_FORM_PER_DIPENDENTE,
+  SPESA_FORMAZIONE_PER_DIPENDENTE = nazionale$SPESA_FORMAZIONE_PER_DIPENDENTE
+)
+
+DT::datatable(trend_template, rownames = FALSE) %>%
+  DT::formatRound(columns = names(trend_template)[-1], digits = 2)
+```
+
+
+Segnali di attenzione
+=======================================================================
+
+Column
+-----------------------------------------------------------------------
+
+### Enti con segnali di attenzione
+
+```{r}
+DT::datatable(
+  segnali_pa,
+  rownames = FALSE,
+  filter = "top",
+  options = list(pageLength = 15, scrollX = TRUE)
+) %>%
+  DT::formatRound(
+    columns = c("TURNOVER_PERC", "ETA_MEDIA_PA", "QUOTA_UNDER35_PERC"),
+    digits = 2
+  ) %>%
+  DT::formatRound(
+    columns = c("PERSONALE_TOT", "SALDO_ASS_CESS", "N_SEGNALI"),
+    digits = 0
+  )
+```
+
+Column
+-----------------------------------------------------------------------
+
+### Distribuzione dei segnali
+
+```{r}
+p6 <- segnali_pa %>%
+  count(N_SEGNALI) %>%
+  ggplot(aes(x = factor(N_SEGNALI), y = n)) +
+  geom_col(
+    fill = "#2C7FB8"
+  ) +
+  labs(
+    x = "Numero di segnali",
+    y = "Numero PA",
+    title = "Distribuzione dei segnali di attenzione"
+  ) +
+  theme_minimal()
+
+plotly::ggplotly(p6)
+```

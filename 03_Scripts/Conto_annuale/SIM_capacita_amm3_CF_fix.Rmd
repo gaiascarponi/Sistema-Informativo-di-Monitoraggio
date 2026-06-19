@@ -1,5 +1,5 @@
 ---
-title: "SIM - Monitoraggio effetti PNRR Anno 2023"
+title: "Sistema Informativo Monitoraggio PA (Versione beta)"
 output:
   flexdashboard::flex_dashboard:
     orientation: columns
@@ -897,6 +897,37 @@ if (all(is.na(base_pa$ETA_MEDIA_PA))) indicatori_mancanti <- c(indicatori_mancan
 if (all(is.na(base_pa$QUOTA_UNDER35_PERC))) indicatori_mancanti <- c(indicatori_mancanti, "quota under 35")
 # if (nrow(geo_regione) == 0) indicatori_mancanti <- c(indicatori_mancanti, "aggregazione territoriale")
 if (all(is.na(base_pa$SPESA_FORMAZIONE_L020))) indicatori_mancanti <- c(indicatori_mancanti, "spesa formazione L020")
+```
+
+PA monitorate
+=======================================================================
+
+Column
+-----------------------------------------------------------------------
+
+### Nota
+
+```{r, results='asis'}
+htmltools::div(
+  style = "padding:12px; background-color:#e2e3e5; border:1px solid #d6d8db; border-radius:6px;",
+  "Versione in progress",
+)
+```
+
+
+Fonti informative SIM
+=======================================================================
+
+Column
+-----------------------------------------------------------------------
+
+### Nota
+
+```{r, results='asis'}
+htmltools::div(
+  style = "padding:12px; background-color:#e2e3e5; border:1px solid #d6d8db; border-radius:6px;",
+  "Versione in progress",
+)
 ```
 
 Overview nazionale

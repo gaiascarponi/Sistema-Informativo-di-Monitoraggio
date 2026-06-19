@@ -54,6 +54,7 @@ rm(list=ls())
 #..............................................................................#
 source("03_Scripts/00_config.R")
 source("03_Scripts/00_drive_helpers.R")
+source("03_Scripts/helper_console_log.R")
 
 library(readxl) 
 library(googledrive)
@@ -80,8 +81,10 @@ delete_local_temp <- FALSE
 RUN_ID <- format(Sys.time(), "%Y%m%d_%H%M%S")
 message("RUN_ID costruzione lista: ", RUN_ID)
 
-DRIVE_DIR_METADATA_LISTA <- file.path(DRIVE_DIR_METADATA, "lista")
+DRIVE_DIR_METADATA_LISTA <- file.path(DRIVE_DIR_METADATA, "List_met")
 DRIVE_DIR_LOGS_LISTA <- file.path(DRIVE_DIR_LOGS, "lista")
+
+DIR_LOGS_LISTA_LOCAL <- file.path(DIR_TEMP, "Lista", "Logs", RUN_ID)
 
 #..............................................................................#
 #                     PATH DI INPUT E OUTPUT                                ####
@@ -105,8 +108,20 @@ local_file_bdap <- file.path(DIR_TEMP, file_bdap_name)
 
 # Output locali temporanei.
 local_lista_file    <- file.path(DIR_TEMP, "lista.xlsx")
-local_audit_file    <- file.path(DIR_TEMP, paste0("lista_audit_", RUN_ID, ".xlsx"))
+local_integrazione_qualita_file    <- file.path(DIR_TEMP, paste0("lista_integrazione_qualita_", RUN_ID, ".xlsx"))
 local_metadata_file <- file.path(DIR_TEMP, paste0("metadata_lista_", RUN_ID, ".xlsx"))
+
+
+
+
+# Avvio console log ...........................................................
+
+console_log <- start_console_log(
+  log_dir = DIR_LOGS_LISTA_LOCAL,
+  run_id = RUN_ID,
+  script_name = "00_main"
+)
+
 
 #..............................................................................#
 #                              FUNCTIONS                                    ####
@@ -1543,7 +1558,7 @@ writexl::write_xlsx(
     s13_fuori_perimetro_mpa = s13_fuori_perimetro_mpa,
     bdap_fuori_perimetro_mpa = bdap_fuori_perimetro_mpa
   ),
-  path = local_audit_file
+  path = local_integrazione_qualita_file
 )
 
 
@@ -1570,9 +1585,9 @@ drive_upload_or_update(
 
 # Il file audit è run-specific: lo salviamo nei log.
 drive_upload_or_update(
-  local_path = local_audit_file,
-  drive_folder_rel = DRIVE_DIR_LOGS_LISTA,
-  drive_name = basename(local_audit_file)
+  local_path = local_integrazione_qualita_file,
+  drive_folder_rel = DRIVE_DIR_METADATA_LISTA,
+  drive_name = basename(local_integrazione_qualita_file)
 )
 
 
@@ -1627,142 +1642,17 @@ merge_quality_check <- tibble(
     length(technical_suffix_cols) == 0
   )
 )
-# duplicate_keys_log
-# 
-# duplicate_keys_log %>%
-#   count(source, name = "n_chiavi_duplicate")
-# 
-# nrow(MPA_raw)
-# nrow(lista)
-# 
-# lista %>%
-#   summarise(
-#     n = n(),
-#     presente_mpa_missing = sum(is.na(presente_mpa)),
-#     presente_s13_missing = sum(is.na(presente_s13)),
-#     presente_bdap_missing = sum(is.na(presente_bdap)),
-#     presente_s13_rate = mean(!is.na(presente_s13)),
-#     presente_bdap_rate = mean(!is.na(presente_bdap))
-#   )
-# 
-# mpa_non_match_s13 <- lista %>%
-#   filter(is.na(presente_s13))
-# 
-# mpa_non_match_bdap <- lista %>%
-#   filter(is.na(presente_bdap))
-# 
-# nrow(mpa_non_match_s13)
-# nrow(mpa_non_match_bdap)
-# mpa_non_match_s13 %>%
-#   select(codice_fiscale, codice_reg, ragione_sociale, fg) %>%
-#   head(30)
-# 
-# mpa_non_match_bdap %>%
-#   select(codice_fiscale, codice_reg, ragione_sociale, fg) %>%
-#   head(30)
-# 
-# tibble(
-#   fonte = c("MPA", "S13", "BDAP"),
-#   classe_codice_fiscale = c(
-#     class(MPA_raw$CODICE_FISCALE)[1],
-#     class(s13_raw$CODICE_FISCALE)[1],
-#     class(BDAP_raw$CODICE_FISCALE)[1]
-#   ),
-#   classe_codice_reg = c(
-#     class(MPA_raw$CODICE_REG)[1],
-#     class(s13_raw$CODICE_REG)[1],
-#     class(BDAP_raw$CODICE_REG)[1]
-#   )
-# )
-# 
-# MPA_raw %>%
-#   mutate(
-#     CODICE_FISCALE = as.character(CODICE_FISCALE),
-#     CODICE_REG = as.character(CODICE_REG)
-#   ) %>%
-#   summarise(
-#     min_len_cf = min(nchar(CODICE_FISCALE), na.rm = TRUE),
-#     max_len_cf = max(nchar(CODICE_FISCALE), na.rm = TRUE),
-#     n_cf_missing = sum(is.na(CODICE_FISCALE)),
-#     n_reg_missing = sum(is.na(CODICE_REG))
-#   )
-# 
-# s13_raw %>%
-#   mutate(
-#     CODICE_FISCALE = as.character(CODICE_FISCALE),
-#     CODICE_REG = as.character(CODICE_REG)
-#   ) %>%
-#   summarise(
-#     min_len_cf = min(nchar(CODICE_FISCALE), na.rm = TRUE),
-#     max_len_cf = max(nchar(CODICE_FISCALE), na.rm = TRUE),
-#     n_cf_missing = sum(is.na(CODICE_FISCALE)),
-#     n_reg_missing = sum(is.na(CODICE_REG))
-#   )
-# 
-# BDAP_raw %>%
-#   mutate(
-#     CODICE_FISCALE = as.character(CODICE_FISCALE),
-#     CODICE_REG = as.character(CODICE_REG)
-#   ) %>%
-#   summarise(
-#     min_len_cf = min(nchar(CODICE_FISCALE), na.rm = TRUE),
-#     max_len_cf = max(nchar(CODICE_FISCALE), na.rm = TRUE),
-#     n_cf_missing = sum(is.na(CODICE_FISCALE)),
-#     n_reg_missing = sum(is.na(CODICE_REG))
-#   )
-# 
-# 
-# conflict_log %>%
-#   count(variable, source_a, source_b, sort = TRUE)
-# 
-# 
-# conflict_log %>%
-#   filter(variable %in% c("RAGIONE_SOCIALE", "FG")) %>%
-#   arrange(variable, CODICE_FISCALE, CODICE_REG) %>%
-#   head(50)
-# 
-# duplicate_pairs_log %>%
-#   arrange(variable_base, source_a, source_b)
-# 
-# duplicate_pairs_log %>%
-#   count(variable_base, sort = TRUE)
-# 
-# names(lista)[stringr::str_detect(names(lista), "_mpa$|_s13$|_bdap$|\\.x$|\\.y$|_x$|_y$")]
-# 
-# lista %>%
-#   count(fonte_ragione_sociale, sort = TRUE)
-# 
-# lista %>%
-#   count(fonte_fg, sort = TRUE)
-# 
-# nrow(s13_fuori_perimetro_mpa)
-# nrow(bdap_fuori_perimetro_mpa)
-# 
-# s13_fuori_perimetro_mpa %>%
-#   select(CODICE_FISCALE, CODICE_REG, contains("RAGIONE"), contains("FG")) %>%
-#   head(30)
-# 
-# bdap_fuori_perimetro_mpa %>%
-#   select(CODICE_FISCALE, CODICE_REG, contains("RAGIONE"), contains("DENOM"), contains("FG")) %>%
-#   head(30)
-# 
-# merge_quality_check <- tibble(
-#   check = c(
-#     "Lista finale conserva numero righe MPA",
-#     "Nessun duplicato chiave in MPA",
-#     "Nessuna moltiplicazione dopo join S13",
-#     "Nessuna moltiplicazione dopo join BDAP",
-#     "Tutti i record finali hanno presente_mpa",
-#     "Lista finale senza suffissi tecnici"
-#   ),
-#   esito = c(
-#     nrow(lista) == nrow(MPA_raw),
-#     nrow(duplicate_keys_mpa) == 0,
-#     n_after_s13_join == n_mpa_before_join,
-#     n_after_bdap_join == n_mpa_before_join,
-#     sum(is.na(lista$presente_mpa)) == 0,
-#     length(names(lista)[stringr::str_detect(names(lista), "_mpa$|_s13$|_bdap$|\\.x$|\\.y$|_x$|_y$")]) == 0
-#   )
-# )
-# 
-# merge_quality_check
+
+
+
+# Chiude il file e ripristina la console.
+console_log_path <- stop_console_log(
+  console_log,
+  status = "completed"
+)
+
+# Carica o aggiorna il log nella cartella 05_Logs su Drive.
+drive_upload_or_update(
+  local_path = console_log_path,
+  drive_folder_rel = DRIVE_DIR_LOGS_LISTA
+)

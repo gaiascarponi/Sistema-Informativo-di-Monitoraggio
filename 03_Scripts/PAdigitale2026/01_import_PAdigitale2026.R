@@ -537,7 +537,7 @@ local_ipa_ordini_xlsx <- file.path(
 )
 
 local_ipa_check_xlsx <- file.path(
-  DIR_PAD26_LOGS_LOCAL,
+  DIR_PAD26_METADATA_LOCAL,
   "check_classificazione_ordini_ipa.xlsx"
 )
 
@@ -578,7 +578,7 @@ drive_upload_or_update(
 
 drive_upload_or_update(
   local_path = local_ipa_check_xlsx,
-  drive_folder_rel = DRIVE_PAD26_LOGS
+  drive_folder_rel = DRIVE_PAD26_METADATA
 )
 
 # 12) Creazione dataset processed --------------------------------------------
@@ -1267,6 +1267,311 @@ message(
   local_candidature_full_rds
 )
 
+
+# 13.7 Mappatura nomi originali e standardizzati ------------------------------
+
+# La mappatura viene ricostruita direttamente dalle intestazioni dei file raw.
+# In questo modo non dobbiamo scrivere manualmente i nomi delle variabili.
+
+leggi_header_csv <- function(file_path, dataset_id, fonte) {
+  
+  header <- readr::read_csv(
+    file_path,
+    n_max = 0,
+    show_col_types = FALSE,
+    name_repair = "minimal"
+  )
+  
+  nomi_originali <- names(header)
+  
+  tibble::tibble(
+    fonte = fonte,
+    dataset_id_originale = dataset_id,
+    nome_variabile_originale = nomi_originali,
+    nome_variabile_standardizzato =
+      janitor::make_clean_names(nomi_originali)
+  )
+}
+
+
+leggi_header_excel <- function(file_path, dataset_id, fonte) {
+  
+  header <- readxl::read_excel(
+    file_path,
+    n_max = 0,
+    col_types = "text"
+  )
+  
+  nomi_originali <- names(header)
+  
+  tibble::tibble(
+    fonte = fonte,
+    dataset_id_originale = dataset_id,
+    nome_variabile_originale = nomi_originali,
+    nome_variabile_standardizzato =
+      janitor::make_clean_names(nomi_originali)
+  )
+}
+
+
+metadata_nomi_input <- dplyr::bind_rows(
+  
+  purrr::map2_dfr(
+    file_pad26$dataset_id,
+    file_pad26$filename,
+    function(dataset_id, filename) {
+      
+      leggi_header_csv(
+        file_path = file.path(
+          DIR_PAD26_SOURCE_LOCAL,
+          filename
+        ),
+        dataset_id = dataset_id,
+        fonte = "PA digitale 2026"
+      )
+    }
+  ),
+  
+  leggi_header_excel(
+    file_path = local_ipa_categorie_raw,
+    dataset_id = "ipa_categorie_raw",
+    fonte = "IndicePA - categorie enti"
+  ),
+  
+  leggi_header_excel(
+    file_path = local_ipa_enti_raw,
+    dataset_id = "ipa_enti_raw",
+    fonte = "IndicePA - enti"
+  )
+)
+
+
+# Descrizioni validate delle principali variabili PAD26 e delle variabili
+# derivate nello script.
+
+dizionario_variabili_pad26 <- tibble::tribble(
+  ~nome_variabile_standardizzato, ~descrizione, ~unita_di_misura, ~note,
+  
+  "dataset_id",
+  "Identificativo del dataset di provenienza del record.",
+  NA_character_,
+  "Variabile tecnica aggiunta durante l'importazione.",
+  
+  "file_origine",
+  "Nome del file sorgente da cui è stato importato il record.",
+  NA_character_,
+  "Variabile tecnica aggiunta durante l'importazione.",
+  
+  "tipo_file_candidatura",
+  "Tipologia del file di candidature da cui deriva il record.",
+  NA_character_,
+  "Distingue candidature di comuni, scuole e altri enti.",
+  
+  "codice_ipa",
+  "Codice IPA dell'amministrazione presente nel dataset PA digitale 2026.",
+  NA_character_,
+  "Chiave di raccordo con l'anagrafica IndicePA.",
+  
+  "ente",
+  "Denominazione dell'ente candidato riportata in PA digitale 2026.",
+  NA_character_,
+  NA_character_,
+  
+  "tipologia_ente",
+  "Tipologia dell'ente candidato riportata in PA digitale 2026.",
+  NA_character_,
+  NA_character_,
+  
+  "comune",
+  "Denominazione del comune associato all'ente.",
+  NA_character_,
+  NA_character_,
+  
+  "cod_comune",
+  "Codice del comune associato all'ente.",
+  NA_character_,
+  "Mantenuto come carattere per preservare eventuali zeri iniziali.",
+  
+  "provincia",
+  "Denominazione della provincia associata all'ente.",
+  NA_character_,
+  NA_character_,
+  
+  "cod_provincia",
+  "Codice della provincia associata all'ente.",
+  NA_character_,
+  "Standardizzato a tre caratteri.",
+  
+  "regione",
+  "Denominazione della regione associata all'ente.",
+  NA_character_,
+  NA_character_,
+  
+  "cod_regione",
+  "Codice della regione associata all'ente.",
+  NA_character_,
+  "Standardizzato a due caratteri.",
+  
+  "importo_finanziamento",
+  "Importo del finanziamento associato alla candidatura.",
+  "euro",
+  "Convertito in variabile numerica durante il processamento.",
+  
+  "avviso",
+  "Avviso PA digitale 2026 cui si riferisce la candidatura.",
+  NA_character_,
+  NA_character_,
+  
+  "data_invio_candidatura",
+  "Data e ora di invio della candidatura.",
+  "data e ora",
+  "Convertita in formato POSIXct.",
+  
+  "data_finanziamento",
+  "Data di finanziamento della candidatura.",
+  "data",
+  "Convertita in formato Date.",
+  
+  "codice_cup",
+  "Codice unico di progetto associato alla candidatura.",
+  NA_character_,
+  "Identificativo del progetto di investimento pubblico.",
+  
+  "numero_finestra_temporale",
+  "Numero della finestra temporale cui appartiene la candidatura.",
+  NA_character_,
+  NA_character_,
+  
+  "numero_di_protocollo",
+  "Numero di protocollo della candidatura.",
+  NA_character_,
+  NA_character_,
+  
+  "decreto_finanziamento",
+  "Riferimento al decreto di finanziamento della candidatura.",
+  NA_character_,
+  NA_character_,
+  
+  "stato_candidatura",
+  "Stato amministrativo della candidatura.",
+  NA_character_,
+  NA_character_,
+  
+  "data_stato_candidatura",
+  "Data cui si riferisce lo stato della candidatura.",
+  "data",
+  "Convertita in formato Date.",
+  
+  "titolo",
+  "Titolo dell'avviso PA digitale 2026.",
+  NA_character_,
+  NA_character_,
+  
+  "misura",
+  "Misura PNRR cui è associato l'avviso.",
+  NA_character_,
+  NA_character_,
+  
+  "data_inizio_bando",
+  "Data di apertura dell'avviso.",
+  "data",
+  NA_character_,
+  
+  "data_fine_bando",
+  "Data di chiusura dell'avviso.",
+  "data",
+  NA_character_,
+  
+  "stato",
+  "Stato dell'avviso.",
+  NA_character_,
+  NA_character_,
+  
+  "totale_importo_stanziato",
+  "Importo complessivamente stanziato per l'avviso.",
+  "euro",
+  NA_character_,
+  
+  "totale_importo_misura",
+  "Importo complessivo associato alla misura.",
+  "euro",
+  NA_character_,
+  
+  "soggetti_destinatari",
+  "Tipologie di soggetti destinatari dell'avviso.",
+  NA_character_,
+  NA_character_,
+  
+  "codice_ipa_key",
+  "Versione normalizzata del codice IPA utilizzata per i raccordi.",
+  NA_character_,
+  "Variabile derivata.",
+  
+  "codice_ipa_ipa",
+  "Codice IPA recuperato dall'anagrafica ufficiale IndicePA.",
+  NA_character_,
+  "Variabile aggiunta tramite raccordo con IndicePA.",
+  
+  "denominazione_ipa",
+  "Denominazione ufficiale dell'ente nell'anagrafica IndicePA.",
+  NA_character_,
+  "Variabile aggiunta tramite raccordo con IndicePA.",
+  
+  "codice_fiscale_ipa",
+  "Codice fiscale dell'ente recuperato dall'anagrafica IndicePA.",
+  NA_character_,
+  "Variabile aggiunta tramite raccordo con IndicePA.",
+  
+  "codice_fiscale_ipa_key",
+  "Versione normalizzata del codice fiscale IndicePA utilizzata per il raccordo.",
+  NA_character_,
+  "Variabile derivata.",
+  
+  "tipologia_ipa",
+  "Tipologia dell'ente secondo l'anagrafica IndicePA.",
+  NA_character_,
+  "Variabile aggiunta tramite raccordo con IndicePA.",
+  
+  "codice_categoria_ipa",
+  "Codice della categoria dell'ente secondo IndicePA.",
+  NA_character_,
+  "Variabile aggiunta tramite raccordo con IndicePA.",
+  
+  "nome_categoria_ipa",
+  "Denominazione della categoria dell'ente secondo IndicePA.",
+  NA_character_,
+  "Variabile aggiunta tramite raccordo con IndicePA.",
+  
+  "tipologia_categoria_ipa",
+  "Tipologia della categoria dell'ente secondo IndicePA.",
+  NA_character_,
+  "Variabile aggiunta tramite raccordo con IndicePA.",
+  
+  "ordine_professionale_ipa",
+  "Indicatore che identifica ordini, collegi e consigli professionali secondo la categoria ufficiale IndicePA.",
+  "0/1",
+  "Derivato dalla categoria IPA C14.",
+  
+  "esclusione_scuola",
+  "Indicatore delle candidature appartenenti al dataset delle scuole.",
+  "0/1",
+  "Utilizzato per delimitare il perimetro analitico MPA.",
+  
+  "esclusione_ordine_professionale",
+  "Indicatore delle candidature relative a ordini professionali.",
+  "0/1",
+  "Utilizzato per delimitare il perimetro analitico MPA.",
+  
+  "fuori_perimetro_mpa",
+  "Indicatore delle candidature escluse dal perimetro analitico MPA.",
+  "0/1",
+  "Comprende scuole e ordini professionali.",
+  
+  "motivo_esclusione_mpa",
+  "Motivazione dell'esclusione dal perimetro analitico MPA.",
+  NA_character_,
+  "Variabile derivata."
+)
 # 14) Metadati tecnici della run ----------------------------------------------
 
 # Dataset da documentare:
@@ -1291,18 +1596,82 @@ dataset_metadata_list <- c(
   )
 )
 
+# Associa ogni dataset alla fonte prevalente.
+
+fonte_dataset <- function(dataset_id) {
+  
+  dplyr::case_when(
+    stringr::str_detect(dataset_id, "^ipa_") ~
+      "IndicePA - AgID",
+    
+    TRUE ~
+      "PA digitale 2026"
+  )
+}
+
+
+# Stabilisce quali dataset raw possono contenere le variabili di ciascun
+# dataset processed.
+
+dataset_raw_collegati <- function(dataset_id) {
+  
+  if (dataset_id == "avvisi_processed") {
+    return("avvisi")
+  }
+  
+  if (
+    dataset_id %in% c(
+      "candidature_complete_processed",
+      "candidature_mpa_processed"
+    )
+  ) {
+    return(c(
+      "candidature_comuni_finanziate",
+      "candidature_scuole_finanziate",
+      "candidature_altrienti_finanziate",
+      "ipa_enti_raw",
+      "ipa_categorie_raw"
+    ))
+  }
+  
+  if (dataset_id == "ipa_ordini_professionali_processed") {
+    return(c(
+      "ipa_enti_raw",
+      "ipa_categorie_raw"
+    ))
+  }
+  
+  dataset_id
+}
+
+
+# Metadati a livello di dataset.
+
 metadata_file_pad26 <- purrr::imap_dfr(
   dataset_metadata_list,
   function(df, dataset_id) {
+    
+    livello_dataset <- ifelse(
+      stringr::str_detect(dataset_id, "processed"),
+      "processed",
+      "raw"
+    )
+    
     tibble::tibble(
       run_id = RUN_ID,
+      fonte = fonte_dataset(dataset_id),
       dataset_id = dataset_id,
+      livello = livello_dataset,
+      
       file_origine = if ("file_origine" %in% names(df)) {
-        paste(unique(df$file_origine), collapse = " | ")
+        paste(
+          unique(stats::na.omit(df$file_origine)),
+          collapse = " | "
+        )
       } else {
         NA_character_
       },
-      livello = ifelse(str_detect(dataset_id, "processed"), "processed", "raw"),
+      
       n_righe = nrow(df),
       n_colonne = ncol(df),
       variabili = paste(names(df), collapse = " | ")
@@ -1310,11 +1679,25 @@ metadata_file_pad26 <- purrr::imap_dfr(
   }
 )
 
+
+# Metadati tecnici e descrittivi delle variabili.
+
 metadata_variabili_pad26 <- purrr::imap_dfr(
   dataset_metadata_list,
   function(df, dataset_id) {
     
-    livello_dataset <- ifelse(str_detect(dataset_id, "processed"), "processed", "raw")
+    livello_dataset <- ifelse(
+      stringr::str_detect(dataset_id, "processed"),
+      "processed",
+      "raw"
+    )
+    
+    raw_collegati <- dataset_raw_collegati(dataset_id)
+    
+    mappa_dataset <- metadata_nomi_input %>%
+      dplyr::filter(
+        dataset_id_originale %in% raw_collegati
+      )
     
     purrr::map_dfr(
       names(df),
@@ -1322,66 +1705,313 @@ metadata_variabili_pad26 <- purrr::imap_dfr(
         
         x <- df[[var]]
         x_chr <- as.character(x)
-        valori_non_missing <- x_chr[!is.na(x_chr) & x_chr != ""]
+        
+        valori_non_missing <- x_chr[
+          !is.na(x_chr) &
+            stringr::str_squish(x_chr) != ""
+        ]
+        
+        mapping_var <- mappa_dataset %>%
+          dplyr::filter(
+            nome_variabile_standardizzato == var
+          )
+        
+        nome_originale <- if (nrow(mapping_var) > 0) {
+          paste(
+            unique(mapping_var$nome_variabile_originale),
+            collapse = " | "
+          )
+        } else {
+          NA_character_
+        }
+        
+        dataset_originale <- if (nrow(mapping_var) > 0) {
+          paste(
+            unique(mapping_var$dataset_id_originale),
+            collapse = " | "
+          )
+        } else {
+          NA_character_
+        }
+        
+        fonte_originale <- if (nrow(mapping_var) > 0) {
+          paste(
+            unique(mapping_var$fonte),
+            collapse = " | "
+          )
+        } else {
+          fonte_dataset(dataset_id)
+        }
+        
+        descrizione_provvisoria <- if (!is.na(nome_originale)) {
+          stringr::str_to_sentence(
+            stringr::str_replace_all(
+              nome_originale,
+              "_",
+              " "
+            )
+          )
+        } else {
+          stringr::str_to_sentence(
+            stringr::str_replace_all(
+              var,
+              "_",
+              " "
+            )
+          )
+        }
+        
+        tipo_originale <- if (
+          livello_dataset == "raw"
+        ) {
+          class(x)[1]
+        } else {
+          
+          raw_objects <- dataset_metadata_list[
+            intersect(
+              raw_collegati,
+              names(dataset_metadata_list)
+            )
+          ]
+          
+          tipi_raw <- purrr::map_chr(
+            raw_objects,
+            function(raw_df) {
+              
+              if (var %in% names(raw_df)) {
+                class(raw_df[[var]])[1]
+              } else {
+                NA_character_
+              }
+            }
+          )
+          
+          tipi_raw <- unique(
+            stats::na.omit(tipi_raw)
+          )
+          
+          if (length(tipi_raw) == 0) {
+            NA_character_
+          } else {
+            paste(tipi_raw, collapse = " | ")
+          }
+        }
         
         tibble::tibble(
           run_id = RUN_ID,
+          fonte = fonte_originale,
           dataset_id = dataset_id,
+          dataset_id_originale = dataset_originale,
           livello = livello_dataset,
-          file_origine = if ("file_origine" %in% names(df)) {
-            paste(unique(df$file_origine), collapse = " | ")
+          
+          file_origine = if (
+            "file_origine" %in% names(df)
+          ) {
+            paste(
+              unique(stats::na.omit(df$file_origine)),
+              collapse = " | "
+            )
           } else {
             NA_character_
           },
-          variabile = var,
-          tipo_r = class(x)[1],
+          
+          nome_variabile_originale = nome_originale,
+          nome_variabile_standardizzato = var,
+          
+          descrizione = descrizione_provvisoria,
+          
+          tipo_dato_originale = tipo_originale,
+          tipo_dato_dopo_import = class(x)[1],
+          
+          unita_di_misura = NA_character_,
+          
           n_righe = length(x),
-          n_missing = sum(is.na(x_chr) | x_chr == ""),
-          pct_missing = round(100 * n_missing / n_righe, 2),
-          n_valori_distinti = dplyr::n_distinct(x_chr, na.rm = TRUE),
-          esempi_valori = paste(head(unique(valori_non_missing), 5), collapse = " | ")
+          
+          n_missing = sum(
+            is.na(x_chr) |
+              stringr::str_squish(x_chr) == ""
+          ),
+          
+          pct_missing = round(
+            100 * n_missing / n_righe,
+            2
+          ),
+          
+          n_valori_distinti =
+            dplyr::n_distinct(
+              x_chr[
+                !is.na(x_chr) &
+                  stringr::str_squish(x_chr) != ""
+              ]
+            ),
+          
+          esempi_valori = paste(
+            head(
+              unique(valori_non_missing),
+              5
+            ),
+            collapse = " | "
+          ),
+          
+          note = dplyr::case_when(
+            livello_dataset == "processed" &
+              is.na(nome_originale) ~
+              "Variabile derivata durante il processamento.",
+            
+            TRUE ~
+              NA_character_
+          )
         )
       }
     )
   }
-)
+) %>%
+  dplyr::left_join(
+    dizionario_variabili_pad26,
+    by = "nome_variabile_standardizzato",
+    suffix = c("_auto", "_manuale")
+  ) %>%
+  dplyr::mutate(
+    descrizione = dplyr::coalesce(
+      descrizione_manuale,
+      descrizione_auto
+    ),
+    
+    unita_di_misura = dplyr::coalesce(
+      unita_di_misura_manuale,
+      unita_di_misura_auto
+    ),
+    
+    note = dplyr::case_when(
+      !is.na(note_manuale) &
+        !is.na(note_auto) ~
+        paste(
+          note_manuale,
+          note_auto,
+          sep = " "
+        ),
+      
+      !is.na(note_manuale) ~
+        note_manuale,
+      
+      !is.na(note_auto) ~
+        note_auto,
+      
+      is.na(descrizione_manuale) ~
+        "Descrizione generata automaticamente dal nome della variabile; da validare.",
+      
+      TRUE ~
+        NA_character_
+    )
+  ) %>%
+  dplyr::select(
+    run_id,
+    fonte,
+    dataset_id,
+    dataset_id_originale,
+    livello,
+    file_origine,
+    nome_variabile_originale,
+    nome_variabile_standardizzato,
+    descrizione,
+    tipo_dato_originale,
+    tipo_dato_dopo_import,
+    unita_di_misura,
+    n_righe,
+    n_missing,
+    pct_missing,
+    n_valori_distinti,
+    esempi_valori,
+    note
+  )
+
+
+metadata_fonti_pad26 <- tibble::tribble(
+  ~fonte,
+  ~ente_titolare,
+  ~url_repository,
+  ~tipo_fonte,
+  ~periodicita,
+  ~licenza_condizioni_riuso,
+  ~copertura_temporale,
+  ~copertura_territoriale,
+  ~unita_osservazione,
+  ~data_accesso,
+  ~note_stabilita,
+  
+  "PA digitale 2026",
+  "Dipartimento per la trasformazione digitale",
+  base_raw_url,
+  "Open data amministrativi",
+  "Aggiornamento periodico",
+  NA_character_,
+  NA_character_,
+  "Italia",
+  "Avviso o candidatura finanziata",
+  as.Date(Sys.time()),
+  "I file sono acquisiti dal repository pubblico della fonte.",
+  
+  "IndicePA - AgID",
+  "Agenzia per l'Italia Digitale",
+  paste(
+    url_ipa_enti,
+    url_ipa_categorie,
+    sep = " | "
+  ),
+  "Anagrafe amministrativa open data",
+  "Aggiornamento periodico",
+  NA_character_,
+  NA_character_,
+  "Italia",
+  "Ente registrato nell'Indice delle pubbliche amministrazioni",
+  as.Date(Sys.time()),
+  "Fonte utilizzata per l'arricchimento anagrafico e la classificazione degli enti."
+) %>%
+  dplyr::mutate(
+    run_id = RUN_ID,
+    .before = 1
+  )
 
 
 # 15) Salvataggio metadati ----------------------------------------------------
 
-local_metadata_file <- file.path(
+local_metadata_xlsx <- file.path(
   DIR_PAD26_METADATA_LOCAL,
-  "metadata_file_padigitale2026.csv"
+  paste0(
+    "metadata_padigitale2026_",
+    RUN_ID,
+    ".xlsx"
+  )
 )
 
-local_metadata_variabili <- file.path(
-  DIR_PAD26_METADATA_LOCAL,
-  "metadata_variabili_padigitale2026.csv"
+
+openxlsx::write.xlsx(
+  list(
+    "01_fonti" =
+      metadata_fonti_pad26,
+    
+    "02_dataset" =
+      metadata_file_pad26,
+    
+    "03_variabili" =
+      metadata_variabili_pad26,
+    
+    "04_nomi_input" =
+      metadata_nomi_input,
+    
+    "05_run" =
+      run_info
+  ),
+  file = local_metadata_xlsx,
+  overwrite = TRUE
 )
 
-local_run_info_metadata <- file.path(
-  DIR_PAD26_METADATA_LOCAL,
-  "run_info.csv"
-)
-
-write_csv(metadata_file_pad26, local_metadata_file)
-write_csv(metadata_variabili_pad26, local_metadata_variabili)
-write_csv(run_info, local_run_info_metadata)
 
 drive_upload_or_update(
-  local_path = local_metadata_file,
+  local_path = local_metadata_xlsx,
   drive_folder_rel = DRIVE_PAD26_METADATA
 )
 
-drive_upload_or_update(
-  local_path = local_metadata_variabili,
-  drive_folder_rel = DRIVE_PAD26_METADATA
-)
-
-drive_upload_or_update(
-  local_path = local_run_info_metadata,
-  drive_folder_rel = DRIVE_PAD26_METADATA
-)
 
 
 # 16) Chiusura ---------------------------------------------------------------

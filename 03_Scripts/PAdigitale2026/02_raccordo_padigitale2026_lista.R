@@ -50,7 +50,7 @@ googledrive::drive_auth(scopes = "https://www.googleapis.com/auth/drive")
 # parametro per pulire la cartella temp alla fine del run
   delete_local_temp <- FALSE
   
-  RUN_ID_IMPORT <- "20260617_184040"  # da copiare dall'output dello script 01
+  RUN_ID_IMPORT <- "20260620_030101"  # da copiare dall'output dello script 01
   RUN_ID <- format(Sys.time(), "%Y%m%d_%H%M%S")
   
   message("RUN_ID_IMPORT: ", RUN_ID_IMPORT)
@@ -64,6 +64,7 @@ googledrive::drive_auth(scopes = "https://www.googleapis.com/auth/drive")
   DIR_PAD26_PROCESSED_LOCAL <- file.path(DIR_TEMP, "PADigitale2026", "Processed", RUN_ID)
   DIR_PAD26_OUTPUT_LOCAL    <- file.path(DIR_TEMP, "PADigitale2026", "Output", RUN_ID)
   DIR_PAD26_LOGS_LOCAL      <- file.path(DIR_TEMP, "PADigitale2026", "Logs", RUN_ID)
+  DIR_PAD26_METADATA_LOCAL <- file.path(DIR_TEMP, "PADigitale2026", "Metadata", RUN_ID)
   DIR_PAD26_INDICATORI_LOCAL <- file.path(DIR_TEMP, "PADigitale2026", "Indicatori", RUN_ID)
   
   # Percorsi Drive.
@@ -71,6 +72,7 @@ googledrive::drive_auth(scopes = "https://www.googleapis.com/auth/drive")
   DRIVE_PAD26_PROCESSED <- file.path(DRIVE_DIR_PROCESSED, "PADigitale2026", RUN_ID)
   DRIVE_PAD26_OUTPUT    <- file.path(DRIVE_DIR_OUTPUT, "PADigitale2026", RUN_ID)
   DRIVE_PAD26_LOGS      <- file.path(DRIVE_DIR_LOGS, "PADigitale2026", RUN_ID)
+  DRIVE_PAD26_METADATA <- file.path(DRIVE_DIR_METADATA, "Source_met", "PADigitale2026", RUN_ID)
   DRIVE_PAD26_INDICATORI <- file.path(DRIVE_DIR_INDICATORI,  "PADigitale2026",  RUN_ID)
 }
   
@@ -80,6 +82,7 @@ googledrive::drive_auth(scopes = "https://www.googleapis.com/auth/drive")
    dir.create(DIR_PAD26_PROCESSED_LOCAL, recursive = TRUE, showWarnings = FALSE)
   dir.create(DIR_PAD26_OUTPUT_LOCAL, recursive = TRUE, showWarnings = FALSE)
   dir.create(DIR_PAD26_LOGS_LOCAL, recursive = TRUE, showWarnings = FALSE)
+  dir.create(DIR_PAD26_METADATA_LOCAL, recursive = TRUE, showWarnings = FALSE)
   dir.create(DIR_PAD26_INDICATORI_LOCAL, recursive = TRUE, showWarnings = FALSE)
  }   
   
@@ -2374,8 +2377,8 @@ if (length(oggetti_log_mancanti) > 0L) {
 
 
 local_log_excel <- file.path(
-  DIR_PAD26_LOGS_LOCAL,
-  "log_raccordo_padigitale2026_lista.xlsx"
+  DIR_PAD26_METADATA_LOCAL,
+  "controlli_raccordo_padigitale2026_lista.xlsx"
 )
 
 openxlsx::write.xlsx(
@@ -2387,7 +2390,7 @@ openxlsx::write.xlsx(
 
 drive_upload_or_update(
   local_path = local_log_excel,
-  drive_folder_rel = DRIVE_PAD26_LOGS
+  drive_folder_rel = DRIVE_PAD26_METADATA
 )
 
 

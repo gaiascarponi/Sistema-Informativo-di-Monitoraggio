@@ -175,11 +175,38 @@ indicatori_cols <- c(
 indicatori_long <- indicatori_ca %>%
   dplyr::select(
     dplyr::any_of(c(
-      "anno", "codice_fiscale", "ragione_sociale", "denominazione",
-      "codice_unita_s13", "codice_unita_mpa", "codice_regione", "dizione_regione",
-      "codice_provincia", "dizione_provincia", "codice_comune", "dizione_comune",
-      "descr_tipologia_istat_s13", "presente_mpa", "presente_MPA",
-      "fonte_conto_annuale", indicatori_cols
+      "anno",
+      "codice_fiscale",
+      "codice_reg",
+      "ragione_sociale",
+      "denominazione",
+      
+      "fg",
+      "desc_fg",
+      
+      "codice_unita_s13",
+      "codice_unita_mpa",
+      
+      "codice_regione_bdap",
+      "regione_bdap",
+      "codice_provincia",
+      "sigla_provincia",
+      "provincia",
+      "codice_comune",
+      "comune",
+      
+      "desc_tipo_istituzione_ca",
+      "desc_istituzione_ca",
+      "descr_tipologia_istat_s13_bdap",
+      "descr_forma_giuridica_bdap",
+      "descr_categoria_ipa_bdap",
+      "descr_tipologia_ipa_bdap",
+      
+      "presente_mpa",
+      "presente_MPA",
+      "fonte_conto_annuale",
+      
+      indicatori_cols
     ))
   ) %>%
   tidyr::pivot_longer(

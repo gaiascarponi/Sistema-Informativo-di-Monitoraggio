@@ -1,0 +1,29 @@
+G3;--- INIZIO ELABORAZIONE: 2026-06-20 18:18:46.496973 ---
+gG3;Script in esecuzione: 02_Indicators_PagoPA
+gThe googledrive package is requesting access to your Google account.
+Enter '1' to start a new auth process or select a pre-authorized account.
+1: Send me to the browser for a new auth process.
+2: scarponigaia@gmail.com
+G3;Drive collegato correttamente
+gG3;
+gG3;
+g-/                                                                                                                                                                                   /                                                                                                                                                                                   -                                                                                                                                                                                   -/                                                                                                                                                                                   /                                                                                                                                                                                   -                                                                                                                                                                                   -/                                                                                                                                                                                   /                                                                                                                                                                                   -                                                                                                                                                                                   -/                                                                                                                                                                                   /                                                                                                                                                                                   -                                                                                                                                                                                   -/                                                                                                                                                                                   /                                                                                                                                                                                   -                                                                                                                                                                                   -/                                                                                                                                                                                   /                                                                                                                                                                                   -                                                                                                                                                                                   -/                                                                                                                                                                                   /                                                                                                                                                                                   -                                                                                                                                                                                   G3;File caricati in R-Studio
+gG3;Creati indicatori per fil_reg
+gG3;Creati indicatori per fil_anno e fil_mese
+gG3;Creati indicatori per fil_ambito
+gG3;Creati indicatori per fil_fascia
+gG3;Dataset unico creato
+gG3;File trashed:
+gG3;• 'INDICATORS_PAGOPA.json' <id: 1_4o4lWCI7LONwSkht7O3nIGg2SsvGZBp>
+gG3;Local file:
+gG3;• '07_Temp/INDICATORS_PAGOPA.json'
+gG3;Uploaded into Drive file:
+gG3;• 'INDICATORS_PAGOPA.json' <id: 1rt2EuuKMCJT0WsY7SrjVbrseCa4j9XDo>
+gG3;With MIME type:
+gG3;• 'application/json'
+gG3;Files caricati correttamente su Drive
+g[1] TRUE TRUE TRUE TRUE TRUE TRUE TRUE
+[1] TRUE
+G3;Rimossi i files in 07_Temp
+gG3;--- FINE ELABORAZIONE: 2026-06-20 18:19:17.517126 ---
+g

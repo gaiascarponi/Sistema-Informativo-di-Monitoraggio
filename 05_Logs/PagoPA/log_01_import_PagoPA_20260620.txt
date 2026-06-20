@@ -1,0 +1,46 @@
+G3;--- INIZIO ELABORAZIONE: 2026-06-20 18:46:21.710569 ---
+gG3;Script in esecuzione: 01_import_PagoPA
+gThe googledrive package is requesting access to your Google account.
+Enter '1' to start a new auth process or select a pre-authorized account.
+1: Send me to the browser for a new auth process.
+2: scarponigaia@gmail.com
+G3;Drive collegato correttamente
+gG3;Scaricamento: IO - Messaggi inviati da servizi.xlsx
+gindexing temp_file.csv [========================================================================================================================================] 31.66MB/s, eta:  0s                                                                                                                                                                                     G3;Scaricamento: IO - Distribuzione geografica enti e servizi.xlsx
+gindexing temp_file.csv [========================================================================================================================================] 72.54MB/s, eta:  0s                                                                                                                                                                                     G3;Scaricamento: SEND - Distribuzione dei principali ambiti di notifica.xlsx
+gindexing temp_file.csv [========================================================================================================================================] 68.60MB/s, eta:  0s                                                                                                                                                                                     G3;Scaricamento: SEND - Distribuzione geografica dei Comuni su SEND.xlsx
+gindexing temp_file.csv [=======================================================================================================================================] 136.60MB/s, eta:  0s                                                                                                                                                                                     G3;Scaricamento: SEND - Distribuzione del numero di notifiche.xlsx
+gindexing temp_file.csv [========================================================================================================================================] 59.97MB/s, eta:  0s                                                                                                                                                                                     G3;Scaricamento: pagoPA - Distribuzione del numero di transazioni per fascia di importo e categoria di ente creditore.xlsx
+gindexing temp_file.csv [=========================================================================================================================================] 2.10GB/s, eta:  0s                                                                                                                                                                                     G3;Scaricamento: pagoPA - Distribuzione mensile del numero di transazioni per categoria di ente creditore.xlsx
+gindexing temp_file.csv [=========================================================================================================================================] 1.06GB/s, eta:  0s                                                                                                                                                                                     G3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'IO - Distribuzione geografica enti e servizi.xlsx' <id: 18BrTkaMT7PMzSEkpTzUx2RHWcwOpIAhf>
+gG3;Caricato su Drive: IO - Distribuzione geografica enti e servizi.xlsx
+gG3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'IO - Messaggi inviati da servizi.xlsx' <id: 1Ce5euTTRWPquIBTiECHwjGsja1mx6kza>
+gG3;Caricato su Drive: IO - Messaggi inviati da servizi.xlsx
+gG3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'pagoPA - Distribuzione del numero di transazioni per fascia di importo e categoria di ente creditore.xlsx' <id: 1CGoOGeknghhwmmeaUbV6l3i4Qe5h9G3Y>
+gG3;Caricato su Drive: pagoPA - Distribuzione del numero di transazioni per fascia di importo e categoria di ente creditore.xlsx
+gG3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'pagoPA - Distribuzione mensile del numero di transazioni per categoria di ente creditore.xlsx' <id: 1J2zNQUJrVLrbcPlIBc7UTXQKldlIDVM4>
+gG3;Caricato su Drive: pagoPA - Distribuzione mensile del numero di transazioni per categoria di ente creditore.xlsx
+gG3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'SEND - Distribuzione dei principali ambiti di notifica.xlsx' <id: 1AnvTYQbOceqQQL4oiQPKcEbE6sbsMj2q>
+gG3;Caricato su Drive: SEND - Distribuzione dei principali ambiti di notifica.xlsx
+gG3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'SEND - Distribuzione del numero di notifiche.xlsx' <id: 1IYHQWeO8WQZxMmkLKB6-Rg9We_a1twVf>
+gG3;Caricato su Drive: SEND - Distribuzione del numero di notifiche.xlsx
+gG3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'SEND - Distribuzione geografica dei Comuni su SEND.xlsx' <id: 1OcVqX4nz5yXt5zkM_7zy7WQ9wLhxqcay>
+gG3;Caricato su Drive: SEND - Distribuzione geografica dei Comuni su SEND.xlsx
+g[1] TRUE TRUE TRUE TRUE TRUE TRUE TRUE
+G3;Tutto completato!
+gG3;--- FINE ELABORAZIONE: 2026-06-20 18:46:50.963599 ---
+g

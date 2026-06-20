@@ -1,0 +1,59 @@
+G3;--- INIZIO ELABORAZIONE: 2026-06-20 19:42:10.118678 ---
+gG3;Script in esecuzione: 01_import_GIC_ANAC
+gThe googledrive package is requesting access to your Google account.
+Enter '1' to start a new auth process or select a pre-authorized account.
+1: Send me to the browser for a new auth process.
+2: scarponigaia@gmail.com
+G3;Lettura: cig_json_2023_01.json
+gG3;Lettura: cig_json_2023_02.json
+gG3;Lettura: cig_json_2023_03.json
+gG3;Lettura: cig_json_2023_04.json
+gG3;Lettura: cig_json_2023_05.json
+gG3;Lettura: cig_json_2023_06.json
+gG3;Lettura: cig_json_2023_07.json
+gG3;Lettura: cig_json_2023_08.json
+gG3;Lettura: cig_json_2023_09.json
+gG3;Lettura: cig_json_2023_10.json
+gG3;Lettura: cig_json_2023_11.json
+gG3;Lettura: cig_json_2023_12.json
+gThere were 13 warnings (use warnings() to see them)
+ [1] TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE
+G3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'cig_json_2023_01.xlsx' <id: 1Pxz1Q-AVWXzZmHhxxBvP1jpqhrG2KiuR>
+gG3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'cig_json_2023_02.xlsx' <id: 1Pi0bPAuG_1aDhAJSfV4pBMVLRVqqo88i>
+gG3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'cig_json_2023_03.xlsx' <id: 1-A1zZH_VN8cF8yvIeqfZJaSwe64DSk9->
+gG3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'cig_json_2023_04.xlsx' <id: 1_byU8YxrdKjRIXHMFGDI4wXJWWE0lFss>
+gG3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'cig_json_2023_05.xlsx' <id: 15uj2xlEVcGbfb2JcOSg7XNaOiOzfaqs->
+gG3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'cig_json_2023_06.xlsx' <id: 1C0qwZvmrrRuZ9XlJOwpTcr5JkLGDZsTf>
+gG3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'cig_json_2023_07.xlsx' <id: 17GGEXR1UxvkvTANtFfzFNl9Tf9rTDFnS>
+gG3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'cig_json_2023_08.xlsx' <id: 1WF4anDGGcqLNerIjH68yCo5w4wYicuxk>
+gG3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'cig_json_2023_09.xlsx' <id: 1pfpB0dH6bBgoQdQ6qeKIf1Brl9pp0MH7>
+gG3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'cig_json_2023_10.xlsx' <id: 1LNIQdPTMulcA2QWu5AH11s9nfeStI9rA>
+gG3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'cig_json_2023_11.xlsx' <id: 1od18hy_VlkJCoC7E6PIsOGDU8_XvlUAG>
+gG3;ℹ A Drive file already exists at this path. Calling `drive_update()`.
+gG3;File updated:
+gG3;• 'cig_json_2023_12.xlsx' <id: 19jsvPAGiRm2RIKiRr9_vhyOmvFNcpWS3>
+g [1] TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE
+G3;--- FINE ELABORAZIONE: 2026-06-20 19:45:14.340787 ---
+g

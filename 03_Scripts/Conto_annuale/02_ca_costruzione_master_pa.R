@@ -137,6 +137,32 @@ ca_write_csv_upload_versioned <- function(obj, drive_path, filename) {
   unlink(local_file)
 }
 
+ca_write_json_upload_versioned <- function(
+    df,
+    drive_path,
+    filename
+) {
+  
+  local_file <- file.path(DIR_TEMP, filename)
+  
+  jsonlite::write_json(
+    df,
+    path = local_file,
+    pretty = TRUE,
+    auto_unbox = TRUE,
+    na = "null"
+  )
+  
+  sim_upload_file(
+    local_file = local_file,
+    drive_folder = sim_drive_ls_path(drive_path),
+    filename = filename,
+    add_timestamp = FALSE
+  )
+  
+  unlink(local_file)
+}
+
 # 2) FUNZIONI STANDARDIZZAZIONE --------------------------------------------
 
 ca_to_num <- function(x) {
@@ -805,7 +831,7 @@ readr::write_csv(
 timestamp_output <- format(Sys.time(), "%Y%m%d_%H%M%S")
 
 filename_master_rds <- paste0(
-  "master_CA_MPA_multianno_",
+  "master_CA_multianno_",
   timestamp_output,
   ".rds"
 )
@@ -814,6 +840,12 @@ filename_master_csv <- paste0(
   "master_CA_multianno_",
   timestamp_output,
   ".csv"
+)
+
+filename_master_json <- paste0(
+  "master_CA_multianno_",
+  timestamp_output,
+  ".json"
 )
 
 ca_save_rds_upload_versioned(
@@ -828,9 +860,16 @@ ca_write_csv_upload_versioned(
   filename = filename_master_csv
 )
 
-message("Master CA-MPA multianno caricato su Drive:")
+ca_write_json_upload_versioned(
+  master_ca_mpa,
+  drive_path = file.path(DRIVE_DIR_PROCESSED, "Conto_annuale"),
+  filename = filename_master_json
+)
+
+message("Master CA multianno caricato su Drive:")
 message(" - ", filename_master_rds)
 message(" - ", filename_master_csv)
+message(" - ", filename_master_json)
 
 print(log_match)
 print(log_match_anagrafica_lista_sim)

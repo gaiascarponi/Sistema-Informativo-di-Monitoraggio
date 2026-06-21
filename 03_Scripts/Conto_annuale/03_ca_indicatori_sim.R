@@ -217,28 +217,21 @@ indicatori_long <- indicatori_ca %>%
     livello_aggregazione = "PA-anno"
   )
 
-overview <- indicatori_long %>%
-  dplyr::group_by(anno, indicatore_id) %>%
-  dplyr::summarise(
-    n_pa_perimetro_mpa = dplyr::n_distinct(codice_fiscale),
-    n_pa_con_valore = dplyr::n_distinct(codice_fiscale[!is.na(valore)]),
-    quota_copertura_indicatore = n_pa_con_valore / n_pa_perimetro_mpa,
-    
-    valore_totale = sum(valore, na.rm = TRUE),
-    valore_medio = mean(valore, na.rm = TRUE),
-    
-    .groups = "drop"
-  )
 
 # Output versionati su Drive --------------------------------------------------
 
 timestamp_output <- format(Sys.time(), "%Y%m%d_%H%M%S")
 
-filename_indicatori_rds <- paste0("indicatori_CA_PA_multianno_", timestamp_output, ".rds")
-filename_indicatori_csv <- paste0("indicatori_CA_PA_multianno_", timestamp_output, ".csv")
-filename_long_rds <- paste0("indicatori_SIM_CA_long_multianno_", timestamp_output, ".rds")
-filename_long_csv <- paste0("indicatori_SIM_CA_long_multianno_", timestamp_output, ".csv")
-filename_overview_csv <- paste0("sim_CA_overview_multianno_", timestamp_output, ".csv")
+filename_indicatori_rds  <- paste0("indicatori_CA_PA_multianno_", timestamp_output, ".rds")
+filename_indicatori_csv  <- paste0("indicatori_CA_PA_multianno_", timestamp_output, ".csv")
+filename_indicatori_json <- paste0("indicatori_CA_PA_multianno_", timestamp_output, ".json")
+
+filename_long_rds  <- paste0("indicatori_SIM_CA_long_multianno_", timestamp_output, ".rds")
+filename_long_csv  <- paste0("indicatori_SIM_CA_long_multianno_", timestamp_output, ".csv")
+filename_long_json <- paste0("indicatori_SIM_CA_long_multianno_", timestamp_output, ".json")
+
+filename_overview_csv  <- paste0("sim_CA_overview_multianno_", timestamp_output, ".csv")
+filename_overview_json <- paste0("sim_CA_overview_multianno_", timestamp_output, ".json")
 
 ca_save_rds_upload_versioned(
   indicatori_ca,
@@ -250,6 +243,12 @@ ca_write_csv_upload_versioned(
   indicatori_ca,
   drive_path = file.path(DRIVE_DIR_PROCESSED, "Conto_annuale"),
   filename = filename_indicatori_csv
+)
+
+ca_write_json_upload_versioned(
+  indicatori_ca,
+  drive_path = file.path(DRIVE_DIR_PROCESSED, "Conto_annuale"),
+  filename = filename_indicatori_json
 )
 
 ca_save_rds_upload_versioned(
@@ -264,15 +263,30 @@ ca_write_csv_upload_versioned(
   filename = filename_long_csv
 )
 
+ca_write_json_upload_versioned(
+  indicatori_long,
+  drive_path = file.path(DRIVE_DIR_PROCESSED, "Conto_annuale"),
+  filename = filename_long_json
+)
+
 ca_write_csv_upload_versioned(
   overview,
   drive_path = file.path(DRIVE_DIR_OUTPUT, "Conto_annuale"),
   filename = filename_overview_csv
 )
 
+ca_write_json_upload_versioned(
+  overview,
+  drive_path = file.path(DRIVE_DIR_OUTPUT, "Conto_annuale"),
+  filename = filename_overview_json
+)
+
 message("File Indicatori CA caricati su Drive:")
 message(" - ", filename_indicatori_rds)
 message(" - ", filename_indicatori_csv)
+message(" - ", filename_indicatori_json)
 message(" - ", filename_long_rds)
 message(" - ", filename_long_csv)
+message(" - ", filename_long_json)
 message(" - ", filename_overview_csv)
+message(" - ", filename_overview_json)

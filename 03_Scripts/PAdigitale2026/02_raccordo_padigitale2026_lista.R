@@ -73,7 +73,7 @@ googledrive::drive_auth(scopes = "https://www.googleapis.com/auth/drive")
   DRIVE_PAD26_OUTPUT    <- file.path(DRIVE_DIR_OUTPUT, "PADigitale2026", RUN_ID)
   DRIVE_PAD26_LOGS      <- file.path(DRIVE_DIR_LOGS, "PADigitale2026", RUN_ID)
   DRIVE_PAD26_METADATA <- file.path(DRIVE_DIR_METADATA, "Source_met", "PADigitale2026", RUN_ID)
-  DRIVE_PAD26_INDICATORI <- file.path(DRIVE_DIR_INDICATORI,  "PADigitale2026",  RUN_ID)
+  DRIVE_PAD26_INDICATORI <- file.path(DRIVE_DIR_INDICATORS,  "PADigitale2026",  RUN_ID)
 }
   
 # 6) Creazione directory locali ----------------------------------------------
@@ -2136,11 +2136,21 @@ local_lista_pad26_long_rds <- file.path(
   "lista_pad26_long.rds"
 )
 
+local_lista_pad26_long_json <- file.path(
+  DIR_PAD26_PROCESSED_LOCAL,
+  "lista_pad26_long.json"
+)
+
 local_lista_pad26_master_rds <- file.path(
   DIR_PAD26_PROCESSED_LOCAL,
   "lista_pad26_master.rds"
 )
 
+local_lista_pad26_master_json <- file.path(
+  DIR_PAD26_PROCESSED_LOCAL,
+  "lista_pad26_master.json"
+)  
+  
 local_pad26_non_match_rds <- file.path(
   DIR_PAD26_PROCESSED_LOCAL,
   "pad26_non_match_lista.rds"
@@ -2157,9 +2167,35 @@ saveRDS(
   local_lista_pad26_long_rds
 )
 
+jsonlite::write_json(
+  x = lista_pad26_long,
+  path = local_lista_pad26_long_json,
+  dataframe = "rows",
+  na = "null",
+  null = "null",
+  pretty = FALSE,
+  auto_unbox = TRUE,
+  digits = NA,
+  Date = "ISO8601",
+  POSIXt = "ISO8601"
+)
+
 saveRDS(
   lista_pad26_master,
   local_lista_pad26_master_rds
+)
+
+jsonlite::write_json(
+  x = lista_pad26_master,
+  path = local_lista_pad26_master_json,
+  dataframe = "rows",
+  na = "null",
+  null = "null",
+  pretty = FALSE,
+  auto_unbox = TRUE,
+  digits = NA,
+  Date = "ISO8601",
+  POSIXt = "ISO8601"
 )
 
 saveRDS(
@@ -2174,7 +2210,9 @@ saveRDS(
 
 output_raccordo_paths <- c(
   local_lista_pad26_long_rds,
+  local_lista_pad26_long_json,
   local_lista_pad26_master_rds,
+  local_lista_pad26_master_json,
   local_pad26_non_match_rds,
   local_lista_non_pad26_rds
 )

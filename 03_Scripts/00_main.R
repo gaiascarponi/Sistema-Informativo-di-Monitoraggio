@@ -81,10 +81,10 @@ delete_local_temp <- FALSE
 RUN_ID <- format(Sys.time(), "%Y%m%d_%H%M%S")
 message("RUN_ID costruzione lista: ", RUN_ID)
 
-DRIVE_DIR_METADATA_LISTA <- file.path(DRIVE_DIR_METADATA, "List_met")
-DRIVE_DIR_LOGS_LISTA <- file.path(DRIVE_DIR_LOGS, "lista")
+DRIVE_DIR_METADATA_LISTA <- file.path(DRIVE_DIR_METADATA, "Lists_met")
+DRIVE_DIR_LOGS_LISTA <- file.path(DRIVE_DIR_LOGS, "lists")
 
-DIR_LOGS_LISTA_LOCAL <- file.path(DIR_TEMP, "Lista", "Logs", RUN_ID)
+DIR_LOGS_LISTA_LOCAL <- file.path(DIR_TEMP, "Lists", "Logs", RUN_ID)
 
 #..............................................................................#
 #                     PATH DI INPUT E OUTPUT                                ####

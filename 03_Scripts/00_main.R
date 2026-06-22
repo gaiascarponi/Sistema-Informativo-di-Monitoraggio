@@ -1,5 +1,5 @@
 #..............................................................................#
-# SCRIPT: costruzione lista.xlsx
+# SCRIPT: costruzione Lista_raccordo_SIM.xlsx
 # PROGETTO: Monitoraggio-PNRR / MIPA
 #
 # SCOPO DELLO SCRIPT
@@ -23,7 +23,7 @@
 # - 01_Dataset/Lists/Anagrafe-Enti-BDAP.xlsx
 #
 # OUTPUT DRIVE
-# - 01_Dataset/Lists/lista.xlsx
+# - 01_Dataset/Lists/Lista_raccordo_SIM.xlsx
 #   Lista finale pulita da usare nei raccordi e nelle dashboard.
 #
 # - 05_Logs/lista/lista_audit_<RUN_ID>.xlsx
@@ -34,7 +34,7 @@
 #
 # Nota:
 # tutti gli output collegati alla costruzione della lista, ad eccezione
-# del file operativo lista.xlsx, vengono salvati in un sottfolder "lista".
+# del file operativo Lista_raccordo_SIM.xlsx, vengono salvati in un sottfolder "lista".
 #
 # SCELTE METODOLOGICHE SINTETICHE
 # 1. MPA è il perimetro della master list.
@@ -107,7 +107,7 @@ local_file_s13  <- file.path(DIR_TEMP, file_s13_name)
 local_file_bdap <- file.path(DIR_TEMP, file_bdap_name)
 
 # Output locali temporanei.
-local_lista_file    <- file.path(DIR_TEMP, "lista.xlsx")
+local_lista_file    <- file.path(DIR_TEMP, "Lista_raccordo_SIM.xlsx")
 local_integrazione_qualita_file    <- file.path(DIR_TEMP, paste0("lista_integrazione_qualita_", RUN_ID, ".xlsx"))
 local_metadata_file <- file.path(DIR_TEMP, paste0("metadata_lista_", RUN_ID, ".xlsx"))
 
@@ -1576,11 +1576,11 @@ writexl::write_xlsx(
 #..............................................................................#
 #                               EXPORT TO DRIVE                             ####
 #..............................................................................#
-# lista.xlsx è il file operativo: viene caricato/aggiornato in 01_Dataset/Lists.
+# Lista_raccordo_SIM.xlsx è il file operativo: viene caricato/aggiornato in 01_Dataset/Lists.
 drive_upload_or_update(
   local_path = local_lista_file,
   drive_folder_rel = DRIVE_DIR_LISTS,
-  drive_name = "lista.xlsx"
+  drive_name = "Lista_raccordo_SIM.xlsx"
 )
 
 # Il file audit è run-specific: lo salviamo nei log.

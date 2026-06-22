@@ -8,13 +8,37 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-library(flexdashboard)
-library(shiny)
-library(plotly)
-library(DT)
-library(dplyr)
+
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tidyr)
+  library(stringr)
+  library(readr)
+  library(googledrive)
+  library(jsonlite)
+  library(tibble)
+  library(flexdashboard)
+  library(shiny)
+  library(plotly)
+  library(DT)
+  library(dplyr)
+})
+
+source("03_Scripts/00_config.R")
+source("03_Scripts/00_sim_helpers.R")
 ```
 
+```{r}
+if (exists("SIM_DRIVE_EMAIL")) {
+  googledrive::drive_auth(
+    email = SIM_DRIVE_EMAIL,
+    scopes = "https://www.googleapis.com/auth/drive"
+  )
+} else {
+  googledrive::drive_auth(scopes = "https://www.googleapis.com/auth/drive")
+}
+
+```
 
 Home
 =======================================================================

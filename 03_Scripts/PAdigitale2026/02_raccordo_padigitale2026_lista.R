@@ -209,10 +209,10 @@ pad26_std <- candidature_pad26 %>%
 
 # 13) IMPORT MASTER LIST DA DRIVE --------------------------------------------
 
-file_lista_local <- file.path(DIR_TEMP, "lista.xlsx")
+file_lista_local <- file.path(DIR_TEMP, "Lista_raccordo_SIM.xlsx")
 
 drive_download_from_path(
-  drive_file_rel = file.path(DRIVE_DIR_LISTS, "lista.xlsx"),
+  drive_file_rel = file.path(DRIVE_DIR_LISTS, "Lista_raccordo_SIM.xlsx"),
   local_path = file_lista_local
 )
 
@@ -2210,7 +2210,7 @@ message(
 
 local_pad26_non_match_xlsx <- file.path(
   DIR_PAD26_PROCESSED_LOCAL,
-  "pad26_non_match_lista.xlsx"
+  "pad26_non_match_Lista_raccordo_SIM.xlsx"
 )
 
 local_lista_non_pad26_xlsx <- file.path(
@@ -2378,7 +2378,7 @@ if (length(oggetti_log_mancanti) > 0L) {
 
 local_log_excel <- file.path(
   DIR_PAD26_METADATA_LOCAL,
-  "controlli_raccordo_padigitale2026_lista.xlsx"
+  "controlli_raccordo_padigitale2026_Lista_raccordo_SIM.xlsx"
 )
 
 openxlsx::write.xlsx(
@@ -2701,7 +2701,7 @@ nrow(residui_cf_matchabili)
 #   unlink(file.path(DIR_TEMP, "PADigitale2026", "Logs", RUN_ID), recursive = TRUE)
 #   unlink(file.path(DIR_TEMP, "PADigitale2026", "Indicatori", RUN_ID), recursive = TRUE)
 #   unlink(file.path(DIR_TEMP, "PADigitale2026", "Processed_raccordato", RUN_ID), recursive = TRUE)
-#   unlink(file.path(DIR_TEMP, "lista.xlsx"), recursive = FALSE)
+#   unlink(file.path(DIR_TEMP, "Lista_raccordo_SIM.xlsx"), recursive = FALSE)
 # }
 # # 
 # check_scuole_lista <- lista_base %>%

@@ -185,16 +185,16 @@ file_lista <- drive_find(
 )
 
 if (nrow(file_lista) == 0) {
-  stop("File lista.xlsx non trovato nella cartella Lists.")
+  stop("File Lista_raccordo_SIM.xlsx non trovato nella cartella Lists.")
 }
 
 drive_download(
   file = file_lista,
-  path = file.path(DIR_TEMP, "lista.xlsx"),
+  path = file.path(DIR_TEMP, "Lista_raccordo_SIM.xlsx"),
   overwrite = TRUE
 )
 
-lista <- readxl::read_excel(file.path(DIR_TEMP, "lista.xlsx")) %>%
+lista <- readxl::read_excel(file.path(DIR_TEMP, "Lista_raccordo_SIM.xlsx")) %>%
   janitor::clean_names()
 
 # 5) IMPORT DATASET NOIPA PROCESSED -----------------------------------------

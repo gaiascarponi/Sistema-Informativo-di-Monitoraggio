@@ -6,6 +6,30 @@ library(readr)
 library(readxl)
 library(dplyr)
 
+
+################################################################################
+#                          CONFIGURATION LOG 
+################################################################################
+
+#Recupero il nome dello script attuale
+nome_script <- basename(rstudioapi::getActiveDocumentContext()$path) %>% 
+  str_remove("\\.[rR]$") 
+
+#Creo il nome del file log: log_NOMESCRIPT_YYYYMMDD.txt
+data_oggi <- format(Sys.time(), "%Y%m%d")
+log_filename <- paste0("log_", nome_script, "_", data_oggi, ".txt")
+
+#Definisco il percorso locale 
+if (!dir.exists("05_Logs/ANAC")) dir.create("05_Log/ANAC", recursive = TRUE)
+log_path <- file.path("05_Logs/ANAC", log_filename)
+#attivazione log
+con <- file(log_path, open = "wt")
+sink(con, type = "output")
+sink(con, type = "message")
+
+message("--- INIZIO ELABORAZIONE: ", Sys.time(), " ---")
+message("Script in esecuzione: ", nome_script)
+
 ################################################################################
 #                             CONFIGURATIONS
 ################################################################################
@@ -90,4 +114,23 @@ if (file.exists(path_temp)) {
 } else {
   stop("Errore critico: Il file ", path_temp, " non esiste sul disco!")
 }
+
+
+
+message("--- FINE ELABORAZIONE: ", Sys.time(), " ---")
+
+# Chiudiamo registrazione del log
+sink(type = "message")
+sink(type = "output")
+close(con)
+
+# Carica il LOG anche su Drive
+id_cartella_log_drive <- as_id("1sZo_8mL2qSMk50_qOoOb1nfk9Bu6KOn0") 
+drive_upload(
+  media = log_path,
+  path = id_cartella_log_drive,
+  name = log_filename
+)
+
+
 

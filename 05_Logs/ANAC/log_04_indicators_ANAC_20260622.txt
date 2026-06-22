@@ -1,0 +1,91 @@
+G3;--- INIZIO ELABORAZIONE: 2026-06-22 13:22:58.643287 ---
+gG3;Script in esecuzione: 04_indicators_ANAC
+gThe googledrive package is requesting access to your Google account.
+Enter '1' to start a new auth process or select a pre-authorized account.
+1: Send me to the browser for a new auth process.
+2: scarponigaia@gmail.com
+G3;
+gG3;File downloaded:
+gG3;• 'Master.rds' <id: 1OocFuDDJb-jMD8aiifISs1bXSJQ-ywOa>
+gG3;Saved locally as:
+gG3;• '07_Temp/Master.rds'
+gG3;File master.rds caricato correttamente
+g  [1] "codice_fiscale"                           "codice_reg"                              
+  [3] "fonte_codice_reg"                         "ragione_sociale"                         
+  [5] "fonte_ragione_sociale"                    "fg"                                      
+  [7] "fonte_fg"                                 "desc_fg"                                 
+  [9] "fonte_desc_fg"                            "codice_unita_mpa"                        
+ [11] "codice_unita_s13"                         "id_ente_bdap"                            
+ [13] "codice_ente_ipa"                          "codice_ente_siope"                       
+ [15] "codice_istat_comune"                      "codice_comune"                           
+ [17] "comune"                                   "codice_provincia"                        
+ [19] "sigla_provincia"                          "provincia.x"                             
+ [21] "codice_regione_bdap"                      "regione_bdap"                            
+ [23] "ateco_bdap"                               "descr_ateco_bdap"                        
+ [25] "codice_forma_giuridica_bdap"              "descr_forma_giuridica_bdap"              
+ [27] "codice_tipologia_siope_bdap"              "descr_tipologia_siope_bdap"              
+ [29] "codice_categoria_ipa_bdap"                "descr_categoria_ipa_bdap"                
+ [31] "codice_tipologia_ipa_bdap"                "descr_tipologia_ipa_bdap"                
+ [33] "codice_tipologia_mtur_bdap"               "descr_tipologia_mtur_bdap"               
+ [35] "codice_tipologia_dt_bdap"                 "descr_tipologia_dt_bdap"                 
+ [37] "codice_tipologia_istat_s13_bdap"          "descr_tipologia_istat_s13_bdap"          
+ [39] "codice_tipologia_dlgs_118_2011_bdap"      "descr_tipologia_dlgs_118_2011_bdap"      
+ [41] "data_istituzione_bdap"                    "data_cessazione_bdap"                    
+ [43] "data_inclusione_siope_bdap"               "data_esclusione_siope_bdap"              
+ [45] "data_inclusione_ipa_bdap"                 "data_esclusione_ipa_bdap"                
+ [47] "data_inclusione_istat_s13_bdap"           "data_esclusione_istat_s13_bdap"          
+ [49] "data_inclusione_dlgs_118_2011_bdap"       "data_esclusione_dlgs_118_2011_bdap"      
+ [51] "url_bdap"                                 "telefono_bdap"                           
+ [53] "fax_bdap"                                 "indirizzo_bdap"                          
+ [55] "cap_bdap"                                 "nome_resp_bdap"                          
+ [57] "cogn_resp_bdap"                           "titolo_resp_bdap"                        
+ [59] "presente_mpa"                             "presente_s13"                            
+ [61] "presente_bdap"                            "bdap_record_storicizzato"                
+ [63] "bdap_storicizzazione_ambigua"             "bdap_n_righe_originali"                  
+ [65] "run_id"                                   "cig"                                     
+ [67] "cig_accordo_quadro"                       "numero_gara"                             
+ [69] "oggetto_gara"                             "importo_complessivo_gara"                
+ [71] "n_lotti_componenti"                       "oggetto_lotto"                           
+ [73] "importo_lotto"                            "oggetto_principale_contratto"            
+ [75] "stato"                                    "settore"                                 
+ [77] "luogo_istat"                              "provincia.y"                             
+ [79] "data_pubblicazione"                       "data_scadenza_offerta"                   
+ [81] "cod_tipo_scelta_contraente"               "tipo_scelta_contraente"                  
+ [83] "cod_modalita_realizzazione"               "modalita_realizzazione"                  
+ [85] "codice_ausa"                              "denominazione_amministrazione_appaltante"
+ [87] "sezione_regionale"                        "id_centro_costo"                         
+ [89] "denominazione_centro_costo"               "anno_pubblicazione"                      
+ [91] "mese_pubblicazione"                       "cod_cpv"                                 
+ [93] "descrizione_cpv"                          "flag_prevalente"                         
+ [95] "COD_MOTIVO_CANCELLAZIONE"                 "MOTIVO_CANCELLAZIONE"                    
+ [97] "DATA_CANCELLAZIONE"                       "DATA_ULTIMO_PERFEZIONAMENTO"             
+ [99] "COD_MODALITA_INDIZIONE_SPECIALI"          "MODALITA_INDIZIONE_SPECIALI"             
+[101] "COD_MODALITA_INDIZIONE_SERVIZI"           "MODALITA_INDIZIONE_SERVIZI"              
+[103] "DURATA_PREVISTA"                          "COD_STRUMENTO_SVOLGIMENTO"               
+[105] "STRUMENTO_SVOLGIMENTO"                    "FLAG_URGENZA"                            
+[107] "COD_MOTIVO_URGENZA"                       "MOTIVO_URGENZA"                          
+[109] "FLAG_DELEGA"                              "FUNZIONI_DELEGATE"                       
+[111] "CF_SA_DELEGANTE"                          "DENOMINAZIONE_SA_DELEGANTE"              
+[113] "CF_SA_DELEGATA"                           "DENOMINAZIONE_SA_DELEGATA"               
+[115] "IMPORTO_SICUREZZA"                        "TIPO_APPALTO_RISERVATO"                  
+[117] "CUI_PROGRAMMA"                            "FLAG_PREV_RIPETIZIONI"                   
+[119] "COD_IPOTESI_COLLEGAMENTO"                 "IPOTESI_COLLEGAMENTO"                    
+[121] "CIG_COLLEGAMENTO"                         "COD_ESITO"                               
+[123] "ESITO"                                    "DATA_COMUNICAZIONE_ESITO"                
+[125] "FLAG_PNRR_PNC"                            "mese_rif"                                
+[127] "periodo"                                 
+G3;Dataset unico creato
+gG3;File trashed:
+gG3;• 'INDICATORS_ANAC.json' <id: 1t1v2Wkcbc3pprSpfas-m6zVRnP2lMELr>
+gG3;Local file:
+gG3;• '07_Temp/INDICATORS_ANAC.json'
+gG3;Uploaded into Drive file:
+gG3;• 'INDICATORS_ANAC.json' <id: 14PK8eQEEI3pI_GZjWc4vaKixvLNUcLSs>
+gG3;With MIME type:
+gG3;• 'application/json'
+gG3;Files caricati correttamente su Drive
+glogical(0)
+[1] TRUE
+G3;Rimossi i files in 07_Temp
+gG3;--- FINE ELABORAZIONE: 2026-06-22 13:23:55.783133 ---
+g

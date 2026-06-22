@@ -24,7 +24,7 @@ DRIVE_DIR_PROCESSED <- "01_Dataset/Processed"
 DRIVE_DIR_PROCESSED_ANAC <- "01_Dataset/Processed/ANAC"
 DRIVE_DIR_PROCESSED_ANAC_CIG <-  "01_Dataset/Processed/ANAC/GIC"
 
-DRIVE_DIR_INDICATORI <- "01_Dataset/Indicatori"
+DRIVE_DIR_INDICATORS <- "01_Dataset/Indicators"
 DRIVE_DIR_LISTS     <- "01_Dataset/Lists"
 DRIVE_DIR_METADATA  <- "02_Metadata"
 DIR_SOURCE_MET      <- "02_Metadata/Source_met"

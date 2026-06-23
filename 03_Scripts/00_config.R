@@ -34,12 +34,12 @@ DRIVE_DIR_PROCESSED_ANAC <- "01_Dataset/Processed/ANAC"
 DRIVE_DIR_PROCESSED_ANAC_CIG <-  "01_Dataset/Processed/ANAC/GIC"
 
 # Conto annuale
-DRIVE_DIR_LOGS_CA   <- "05_Logs/Conto_annuale"
-DRIVE_DIR_DOCS_CA      <- "06_Docs/Conto_annuale"
 DRIVE_DIR_INDICATORS_CA <- "01_Dataset/Indicators/Conto_annuale"
 DRIVE_DIR_METADATA_CA  <- "02_Metadata/Conto_annuale"
 DIR_SOURCE_MET_CA      <- "02_Metadata/Source_met/Conto_annuale"
 DRIVE_DIR_OUTPUT_CA    <- "04_Output/Conto_annuale"
+DRIVE_DIR_LOGS_CA   <- "05_Logs/Conto_annuale"
+DRIVE_DIR_DOCS_CA      <- "06_Docs/Conto_annuale"
 
 # ============================================================
 # Path locali: solo cache/appoggio tecnico

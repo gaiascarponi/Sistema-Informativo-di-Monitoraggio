@@ -47,10 +47,17 @@ sim_safe_div <- function(num, den, moltiplica = 1) {
 
 # 2) Drive folders ---------------------------------------------------------
 
+# Funzioni per trovare cartelle Drive
+
+## Recupera la root Drive del progetto usando
 sim_drive_root <- function() {
   googledrive::drive_get(googledrive::as_id(DRIVE_ROOT_ID))
 }
 
+# Serve per trovare una cartella Drive a partire da un path relativo,
+# tipo: sim_drive_ls_path("01_Dataset/Processed/Conto_annuale")
+  
+  sim_drive_ls_path("01_Dataset/Processed/Conto_annuale")
 sim_drive_ls_path <- function(path, create = FALSE) {
   # path relativo alla root Drive, ad esempio "01_Dataset/Source/Conto_annuale"
   root <- sim_drive_root()
@@ -73,13 +80,16 @@ sim_drive_ls_path <- function(path, create = FALSE) {
   current
 }
 
-sim_drive_mkdir_path <- function(path) {
-  sim_drive_ls_path(path, create = TRUE)
-}
+# È solo una scorciatoia per:
+# sim_drive_ls_path(path, create = TRUE)
+# sim_drive_mkdir_path <- function(path) {
+#   sim_drive_ls_path(path, create = TRUE)
+# }
 
-sim_drive_upload_replace <- function(local_file,
-                                     drive_dir,
-                                     name = basename(local_file)) {
+# sim_drive_upload_replace <- function(local_file,
+sim_drive_upload <- function(local_file,
+                            drive_dir,
+                            name = basename(local_file)) {
   
   googledrive::drive_upload(
     media = local_file,
@@ -89,6 +99,8 @@ sim_drive_upload_replace <- function(local_file,
   
 }
 
+# Funzioni per scaricare da Drive
+# Prende un file Drive già trovato con drive_ls() e lo scarica in: DIR_TEMP
 sim_drive_download_to_temp <- function(file_tbl, local_name = NULL, overwrite = TRUE) {
   if (nrow(file_tbl) == 0) stop("File Drive non trovato.")
   if (is.null(local_name)) local_name <- file_tbl$name[1]
@@ -99,6 +111,7 @@ sim_drive_download_to_temp <- function(file_tbl, local_name = NULL, overwrite = 
 
 # 3) Lettura robusta --------------------------------------------------------
 
+# Legge un file già locale. (.xlsx,.xls, .csv ,.txt,.rds)
 sim_read_any_table <- function(path) {
   ext <- tools::file_ext(path) %>% tolower()
   if (ext %in% c("xlsx", "xls")) {
@@ -120,8 +133,15 @@ sim_read_any_table <- function(path) {
   }
 }
 
+# Funzioni per caricare su Drive
+
+# salva df localmente in 07_Temp/filename;
+# carica il CSV su Drive nella cartella drive_path;
+# cancella il file locale temporaneo
+
 sim_write_csv_upload <- function(df, drive_path, filename) {
-  dir_drive <- sim_drive_mkdir_path(drive_path)
+  #dir_drive <- sim_drive_mkdir_path(drive_path)
+  dir_drive <-sim_drive_ls_path(drive_path, create = TRUE)
   local_file <- file.path(DIR_TEMP, filename)
   readr::write_csv(df, local_file)
   sim_drive_upload_replace(local_file, dir_drive, filename)
@@ -129,7 +149,8 @@ sim_write_csv_upload <- function(df, drive_path, filename) {
 }
 
 sim_write_xlsx_upload <- function(list_or_df, drive_path, filename) {
-  dir_drive <- sim_drive_mkdir_path(drive_path)
+  #dir_drive <- sim_drive_mkdir_path(drive_path)
+  dir_drive <-sim_drive_ls_path(drive_path, create = TRUE)
   local_file <- file.path(DIR_TEMP, filename)
   writexl::write_xlsx(list_or_df, local_file)
   sim_drive_upload_replace(local_file, dir_drive, filename)
@@ -137,13 +158,17 @@ sim_write_xlsx_upload <- function(list_or_df, drive_path, filename) {
 }
 
 sim_save_rds_upload <- function(obj, drive_path, filename) {
-  dir_drive <- sim_drive_mkdir_path(drive_path)
+  #dir_drive <- sim_drive_mkdir_path(drive_path)
+  dir_drive <-sim_drive_ls_path(drive_path, create = TRUE)
   local_file <- file.path(DIR_TEMP, filename)
   saveRDS(obj, local_file)
   sim_drive_upload_replace(local_file, dir_drive, filename)
   unlink(local_file)
 }
 
+
+# Cerca un file con nome esatto dentro una cartella Drive, lo scarica in 07_Temp, lo legge con:
+# readRDS() e poi cancella il temporaneo
 sim_read_rds_from_drive <- function(drive_path, filename) {
   dir_drive <- sim_drive_ls_path(drive_path, create = FALSE)
   file_tbl <- googledrive::drive_ls(dir_drive) %>% dplyr::filter(.data$name == filename)
@@ -199,35 +224,13 @@ sim_leggi_lista_mpa <- function(pattern = "MPA") {
     )
 }
 
-# 6) CA
+# # 6) CA
+# 
+# ca_drive_files <- function(anno, sottocartella) {
+#   dir <- sim_drive_ls_path(
+#     file.path(DRIVE_DIR_SOURCE, "Conto_annuale", paste0("CA_", anno), sottocartella),
+#     create = FALSE
+#   )
+#   googledrive::drive_ls(dir)
+# }
 
-ca_drive_files <- function(anno, sottocartella) {
-  dir <- sim_drive_ls_path(
-    file.path(DRIVE_DIR_SOURCE, "Conto_annuale", paste0("CA_", anno), sottocartella),
-    create = FALSE
-  )
-  googledrive::drive_ls(dir)
-}
-
-# In 02_costruzione_master
-ca_read_dataset <- function(anno, pattern, dataset_nome) {
-  files <- ca_find_file(anno, "Dati", pattern)
-  
-  if (nrow(files) == 0) {
-    warning("Dataset ", dataset_nome, " non trovato per anno ", anno)
-    return(tibble::tibble())
-  }
-  
-  ext <- tools::file_ext(files$name[1])
-  
-  ca_download_read(
-    files[1, ],
-    local_name = paste0(dataset_nome, "_", anno, ".", ext)
-  ) %>%
-    dplyr::mutate(
-      anno = anno,
-      dataset_origine = dataset_nome,
-      file_origine = files$name[1],
-      .before = 1
-    )
-}

@@ -1,61 +1,42 @@
 # ============================================================ #
-# Script: 03_indicatori_padigitale2026.R
+# Script: 03_indicatori_padigitale2026_dashboard.R
 # Fonte: PA digitale 2026 - Open data
 #
 # Obiettivo:
-#   Produrre il DB indicatori PA digitale 2026 nel FORMATO LONG
-#   condiviso dal gruppo (come PagoPA), pronto come input della
-#   dashboard unica:
+#   1. mantenere l'output long EAV condiviso dal gruppo;
+#   2. produrre una fact table a livello candidatura, adatta a filtri multipli;
+#   3. produrre una dimensione enti per copertura e normalizzazioni;
+#   4. produrre metadati operativi per dashboard e download.
 #
-#     pa | fil | fil_val | sub_fil | sub_fil_val | ind | ind_val
+# Output indicatori:
+#   - INDICATORS_PADIGITALE2026.*
+#   - FACT_PADIGITALE2026_DASHBOARD.*
+#   - DIM_ENTI_PADIGITALE2026.*
+#   - DIM_AVVISI_PADIGITALE2026.*
 #
-#   Output unico:  INDICATORS_PADIGITALE2026.json  (+ .csv, .rds)
-#   Legenda:       MET_INDICATORS_PADIGITALE2026   (indicatori + filtri)
+# Output metadati:
+#   - MET_INDICATORS_PADIGITALE2026.*
+#   - MET_FILTERS_PADIGITALE2026.*
+#   - MET_VARIABLES_PADIGITALE2026.*
 #
-#   Input: master lista-PAD26 prodotto dallo script 02
-#   (lista_pad26_long), che conserva l'intero perimetro MPA:
-#   gli enti senza candidatura restano come righe con in_pad26 = 0.
-#
-# ------------------------------------------------------------------
-# CONTRATTO DI LETTURA (importante per chi scrive la dashboard)
-# ------------------------------------------------------------------
-# La tabella e' in formato EAV "long". Ogni riga = valore di UN
-# indicatore (ind) per UN ente (pa), letto lungo UNA dimensione di
-# filtro (fil) ed eventualmente una sotto-dimensione (sub_fil).
-# Per aggregare correttamente la dashboard deve:
-#   1) filtrare su UN SOLO valore di 'fil' (es. fil == "fil_reg");
-#   2) (opz.) filtrare anche 'sub_fil' (es. sub_fil == "fil_anno");
-#   3) SOMMARE ind_val solo per gli indicatori ADDITIVI (ind1, ind2),
-#      raggruppando per fil_val;
-#   4) calcolare medie/rapporti DOPO l'aggregazione (vedi legenda).
-# NON sommare mai ind_val mescolando valori di 'fil' diversi:
-# lo stesso dato compare sotto piu' "lenti" (regione, fg, avviso...)
-# e sommarle insieme produrrebbe doppi conteggi.
-#
-# Gli enti del perimetro senza candidatura compaiono solo nelle lenti
-# territoriali / forma giuridica con ind1 = 0 e ind2 = 0: servono come
-# DENOMINATORE per la copertura (n. enti finanziati / n. enti MPA).
-#
-# Le sezioni  # >>> DA DECIDERE  contengono scelte da concordare nel team.
+# Nota metodologica:
+#   Il long EAV resta il formato canonico comune alle fonti.
+#   Per la dashboard con filtri simultanei si usa la fact table, che conserva
+#   tutte le dimensioni in colonne separate.
 # ============================================================ #
 
-
-# 0) Pulizia ambiente ---------------------------------------------------------
-
 rm(list = ls())
-
 
 # 1) Configurazione e helper --------------------------------------------------
 
 source("03_Scripts/00_config.R")
 source("03_Scripts/00_drive_helpers.R")
-source("03_Scripts/00_spatial_helpers.R")   # normalizza_codice_regione/provincia
+source("03_Scripts/00_spatial_helpers.R")
 source("03_Scripts/helper_console_log.R")
 
+# 2) Pacchetti ---------------------------------------------------------------
 
-# 2) Pacchetti ----------------------------------------------------------------
-
-{
+suppressPackageStartupMessages({
   library(dplyr)
   library(tidyr)
   library(stringr)
@@ -65,331 +46,701 @@ source("03_Scripts/helper_console_log.R")
   library(googledrive)
   library(jsonlite)
   library(openxlsx)
-}
+})
 
+# 3) Autenticazione ----------------------------------------------------------
 
-# 3) Autenticazione Drive -----------------------------------------------------
+googledrive::drive_auth(
+  scopes = "https://www.googleapis.com/auth/drive"
+)
 
-googledrive::drive_auth(scopes = "https://www.googleapis.com/auth/drive")
-
-
-# 4) Parametri del run --------------------------------------------------------
+# 4) Parametri ---------------------------------------------------------------
 
 delete_local_temp <- FALSE
 
-# RUN_ID del raccordo (script 02) da cui leggere il master lista-PAD26.
-# >>> DA AGGIORNARE: copiare il RUN_ID stampato dallo script 02.
-RUN_ID_RACCORDO <- "20260622_145431"
+# RUN_ID prodotto dallo script 02_raccordo_padigitale2026_lista.
+RUN_ID_RACCORDO <- "20260623_021242"
 
-# RUN_ID di questo run.
 RUN_ID <- format(Sys.time(), "%Y%m%d_%H%M%S")
 
-# Nome del file master salvato dallo script 02 (rds | json | csv).
-NOME_FILE_MASTER <- "lista_pad26_long.json"
+NOME_FILE_LONG <- "lista_pad26_long.json"
+NOME_FILE_MASTER <- "lista_pad26_master.json"
+NOME_FILE_AVVISI <- "dim_avvisi_padigitale2026.json"
 
-# Etichetta fonte (per la colonna 'fonte' della legenda).
 FONTE_LABEL <- "PA digitale 2026"
-
-# Anno di riferimento: usato per 'fil_anno' se NON c'e' una data per record.
-# >>> DA DECIDERE: anno della finestra dati PA digitale 2026.
-ANNO_RIFERIMENTO <- 2024
+ENTE_EDITORE <- "Presidenza del Consiglio dei ministri - Dipartimento per la trasformazione digitale"
 
 message("RUN_ID_RACCORDO: ", RUN_ID_RACCORDO)
 message("RUN_ID indicatori: ", RUN_ID)
 
+# 5) Compatibilità nomi config -----------------------------------------------
 
-# 5) Directory locali e remote ------------------------------------------------
-# NB: usare lo stesso nome variabile definito in 00_config.R.
-# Nel config attuale la cartella indicatori e' DRIVE_DIR_INDICATORS
-# ("01_Dataset/Indicatori"). Se hai rinominato in DRIVE_DIR_INDICATORS,
-# allinea config e script (vedi nota nel messaggio di accompagnamento).
-
-{
-  DIR_PAD26_PROCESSED_INPUT_LOCAL <- file.path(
-    DIR_TEMP, "PADigitale2026", "Processed", RUN_ID_RACCORDO
-  )
-  DIR_PAD26_INDICATORS_LOCAL <- file.path(
-    DIR_TEMP, "PADigitale2026", "Indicatori", RUN_ID
-  )
-  DIR_PAD26_LOGS_LOCAL <- file.path(
-    DIR_TEMP, "PADigitale2026", "Logs", RUN_ID
-  )
-
-  DRIVE_PAD26_PROCESSED_INPUT <- file.path(
-    DRIVE_DIR_PROCESSED, "PADigitale2026", RUN_ID_RACCORDO
-  )
-  DRIVE_PAD26_INDICATORS <- file.path(
-    DRIVE_DIR_INDICATORS, "PADigitale2026", RUN_ID
-  )
-  DRIVE_PAD26_LOGS <- file.path(
-    DRIVE_DIR_LOGS, "PADigitale2026", RUN_ID
-  )
+get_config_value <- function(name, default = NULL) {
+  if (exists(name, inherits = TRUE)) {
+    get(name, inherits = TRUE)
+  } else {
+    default
+  }
 }
 
+DRIVE_DIR_INDICATORS_BASE <- get_config_value(
+  "DRIVE_DIR_INDICATORS",
+  get_config_value("DRIVE_DIR_INDICATORI", file.path("01_Dataset", "Indicators"))
+)
 
-# 6) Creazione directory locali -----------------------------------------------
+DRIVE_DIR_METADATA_BASE <- get_config_value(
+  "DRIVE_DIR_METADATA",
+  "02_Metadata"
+)
 
-{
-  dir.create(DIR_PAD26_PROCESSED_INPUT_LOCAL, recursive = TRUE, showWarnings = FALSE)
-  dir.create(DIR_PAD26_INDICATORS_LOCAL, recursive = TRUE, showWarnings = FALSE)
-  dir.create(DIR_PAD26_LOGS_LOCAL, recursive = TRUE, showWarnings = FALSE)
-}
+DRIVE_DIR_INDICATORS_MET_BASE <- get_config_value(
+  "DRIVE_DIR_INDICATORS_MET",
+  file.path(DRIVE_DIR_METADATA_BASE, "Indicators_met")
+)
 
+# 6) Directory ---------------------------------------------------------------
 
-# 7) Avvio console log --------------------------------------------------------
+DIR_PAD26_PROCESSED_INPUT_LOCAL <- file.path(
+  DIR_TEMP, "PADigitale2026", "Processed", RUN_ID_RACCORDO
+)
+
+DIR_PAD26_INDICATORS_LOCAL <- file.path(
+  DIR_TEMP, "PADigitale2026", "Indicators", RUN_ID
+)
+
+DIR_PAD26_METADATA_LOCAL <- file.path(
+  DIR_TEMP, "PADigitale2026", "Indicators_met", RUN_ID
+)
+
+DIR_PAD26_LOGS_LOCAL <- file.path(
+  DIR_TEMP, "PADigitale2026", "Logs", RUN_ID
+)
+
+dir.create(DIR_PAD26_PROCESSED_INPUT_LOCAL, recursive = TRUE, showWarnings = FALSE)
+dir.create(DIR_PAD26_INDICATORS_LOCAL, recursive = TRUE, showWarnings = FALSE)
+dir.create(DIR_PAD26_METADATA_LOCAL, recursive = TRUE, showWarnings = FALSE)
+dir.create(DIR_PAD26_LOGS_LOCAL, recursive = TRUE, showWarnings = FALSE)
+
+DRIVE_PAD26_PROCESSED_INPUT <- file.path(
+  DRIVE_DIR_PROCESSED, "PADigitale2026", RUN_ID_RACCORDO
+)
+
+DRIVE_PAD26_INDICATORS <- file.path(
+  DRIVE_DIR_INDICATORS_BASE, "PADigitale2026", RUN_ID
+)
+
+DRIVE_PAD26_METADATA <- file.path(
+  DRIVE_DIR_INDICATORS_MET_BASE, "PADigitale2026", RUN_ID
+)
+
+DRIVE_PAD26_LOGS <- file.path(
+  DRIVE_DIR_LOGS, "PADigitale2026", RUN_ID
+)
+
+# 7) Log ---------------------------------------------------------------------
 
 console_log <- start_console_log(
   log_dir = DIR_PAD26_LOGS_LOCAL,
   run_id = RUN_ID,
-  script_name = "03_indicatori_PAdigitale2026"
+  script_name = "03_indicatori_padigitale2026_dashboard"
 )
 
-message("Console log locale: ", console_log$path)
+# 8) Funzioni ----------------------------------------------------------------
 
-
-# 8) Funzioni di supporto -----------------------------------------------------
-
-n_distinct_nona <- function(x) length(unique(x[!is.na(x)]))
-
-leggi_master <- function(path) {
+leggi_file <- function(path) {
   ext <- tolower(tools::file_ext(path))
-  if (ext == "rds") {
-    readRDS(path)
-  } else if (ext == "json") {
-    jsonlite::fromJSON(path, simplifyDataFrame = TRUE)
-  } else if (ext == "csv") {
-    readr::read_csv(path, show_col_types = FALSE)
-  } else {
-    stop("Estensione non supportata per il master: ", ext)
+  
+  if (ext == "json") {
+    return(jsonlite::fromJSON(path, simplifyDataFrame = TRUE) %>% tibble::as_tibble())
   }
+  
+  if (ext == "rds") {
+    return(readRDS(path) %>% tibble::as_tibble())
+  }
+  
+  if (ext == "csv") {
+    return(readr::read_csv(path, show_col_types = FALSE) %>% tibble::as_tibble())
+  }
+  
+  stop("Formato non supportato: ", ext)
 }
 
-assicura_colonne <- function(df, cols, tipo = c("character", "numeric")) {
-  tipo <- match.arg(tipo)
-  vuoto <- if (tipo == "numeric") NA_real_ else NA_character_
-  for (cc in cols) if (!cc %in% names(df)) df[[cc]] <- vuoto
+scarica_input <- function(nome_file) {
+  local_path <- file.path(DIR_PAD26_PROCESSED_INPUT_LOCAL, nome_file)
+  
+  drive_download_from_path(
+    drive_file_rel = file.path(DRIVE_PAD26_PROCESSED_INPUT, nome_file),
+    local_path = local_path
+  )
+  
+  if (!file.exists(local_path)) {
+    stop("Input non trovato dopo il download: ", local_path)
+  }
+  
+  local_path
+}
+
+ensure_cols <- function(df, cols, value = NA_character_) {
+  for (nm in cols) {
+    if (!nm %in% names(df)) {
+      df[[nm]] <- value
+    }
+  }
   df
 }
 
-
-# 9) Mappa delle colonne attese (lato lista + lato PAD26) ---------------------
-# Centralizzata qui: se nello script 02 cambiano i nomi, si corregge solo qui.
-
-COL <- list(
-  codice_fiscale = "codice_fiscale",
-  in_pad26       = "in_pad26",
-
-  # dimensioni territoriali / strutturali (lato lista)
-  cod_regione    = "codice_reg",
-  cod_provincia  = "codice_provincia",
-  cod_comune     = "codice_comune",
-  desc_fg        = "desc_fg",
-
-  # dimensioni / misure (lato PAD26)
-  avviso         = "pad26_avviso",
-  importo        = "pad26_importo_finanziamento",
-
-  # data della candidatura per derivare l'anno (se presente).
-  # >>> DA VERIFICARE il nome esatto nel raccordo (o lasciare NA).
-  data_candidatura = "pad26_data_invio_candidatura"
-)
-
-
-# 10) Import master lista-PAD26 da Drive --------------------------------------
-
-file_master_local <- file.path(DIR_PAD26_PROCESSED_INPUT_LOCAL, NOME_FILE_MASTER)
-
-drive_download_from_path(
-  drive_file_rel = file.path(DRIVE_PAD26_PROCESSED_INPUT, NOME_FILE_MASTER),
-  local_path = file_master_local
-)
-
-if (!file.exists(file_master_local)) {
-  stop("File master lista-PAD26 non trovato: ", file_master_local)
+safe_date <- function(x) {
+  suppressWarnings(as.Date(x))
 }
 
-master <- leggi_master(file_master_local) %>%
-  tibble::as_tibble() %>%
-  janitor::clean_names()
+safe_num <- function(x) {
+  suppressWarnings(as.numeric(x))
+}
 
-message("Master lista-PAD26 caricato. Righe: ", nrow(master))
+safe_int <- function(x) {
+  suppressWarnings(as.integer(x))
+}
 
-cat(
-  paste(
-    sort(names(master)),
-    collapse = "\n"
+safe_divide <- function(num, den) {
+  dplyr::if_else(
+    !is.na(den) & den != 0,
+    num / den,
+    NA_real_
   )
-)
+}
 
-names(master)[
-  stringr::str_detect(
-    names(master),
-    paste0(
-      "avviso|misura|destinat|data_|stato|ente|",
-      "regione|provincia|comune|desc_fg|ateco"
+safe_id <- function(...) {
+  vals <- list(...)
+  vals <- lapply(vals, as.character)
+  
+  out <- Reduce(
+    function(x, y) dplyr::coalesce(x, y),
+    vals
+  )
+  
+  out
+}
+
+salva_output <- function(
+    obj,
+    base_filename,
+    local_dir,
+    drive_dir,
+    formati = c("rds", "csv", "json"),
+    pretty_json = FALSE
+) {
+  paths <- character()
+  
+  if ("rds" %in% formati) {
+    p <- file.path(local_dir, paste0(base_filename, ".rds"))
+    saveRDS(obj, p)
+    paths <- c(paths, p)
+  }
+  
+  if ("csv" %in% formati) {
+    p <- file.path(local_dir, paste0(base_filename, ".csv"))
+    readr::write_csv(obj, p, na = "")
+    paths <- c(paths, p)
+  }
+  
+  if ("json" %in% formati) {
+    p <- file.path(local_dir, paste0(base_filename, ".json"))
+    
+    jsonlite::write_json(
+      x = obj,
+      path = p,
+      dataframe = "rows",
+      na = "null",
+      null = "null",
+      pretty = pretty_json,
+      auto_unbox = TRUE,
+      digits = NA,
+      Date = "ISO8601",
+      POSIXt = "ISO8601"
+    )
+    
+    paths <- c(paths, p)
+  }
+  
+  missing <- paths[!file.exists(paths)]
+  
+  if (length(missing) > 0L) {
+    stop(
+      "File non creati per ",
+      base_filename,
+      ": ",
+      paste(missing, collapse = ", ")
+    )
+  }
+  
+  purrr::walk(
+    paths,
+    ~ drive_upload_or_update(
+      local_path = .x,
+      drive_folder_rel = drive_dir
     )
   )
-]
-# 11) Preparazione campi base -------------------------------------------------
+  
+  message("Salvato: ", base_filename)
+  invisible(paths)
+}
 
-master <- master %>%
-  assicura_colonne(
-    c(COL$codice_fiscale, COL$cod_regione, COL$cod_provincia, COL$cod_comune,
-      COL$desc_fg, COL$avviso),
-    tipo = "character"
+# 9) Input -------------------------------------------------------------------
+
+file_long_local <- scarica_input(NOME_FILE_LONG)
+file_master_local <- scarica_input(NOME_FILE_MASTER)
+file_avvisi_local <- scarica_input(NOME_FILE_AVVISI)
+
+lista_long <- leggi_file(file_long_local) %>%
+  janitor::clean_names()
+
+lista_master <- leggi_file(file_master_local) %>%
+  janitor::clean_names()
+
+dim_avvisi_input <- leggi_file(file_avvisi_local) %>%
+  janitor::clean_names()
+
+message("lista_pad26_long: ", nrow(lista_long), " righe")
+message("lista_pad26_master: ", nrow(lista_master), " righe")
+message("dim_avvisi_padigitale2026: ", nrow(dim_avvisi_input), " righe")
+
+# 10) Colonne richieste -------------------------------------------------------
+
+required_long <- c(
+  "lista_row_id",
+  "codice_fiscale",
+  "codice_ente_ipa",
+  "ragione_sociale",
+  "codice_reg",
+  "codice_provincia",
+  "codice_comune",
+  "regione_bdap",
+  "provincia",
+  "comune",
+  "desc_fg",
+  "ateco_bdap",
+  "descr_ateco_bdap",
+  "presente_mpa",
+  "presente_s13",
+  "presente_bdap",
+  "in_pad26",
+  "pad26_row_id",
+  "pad26_avviso",
+  "pad26_titolo_avviso",
+  "pad26_misura",
+  "pad26_data_inizio_bando",
+  "pad26_data_fine_bando",
+  "pad26_anno_inizio_bando",
+  "pad26_anno_fine_bando",
+  "pad26_stato_avviso",
+  "pad26_soggetti_destinatari",
+  "pad26_stato_candidatura",
+  "pad26_data_invio_candidatura",
+  "pad26_data_finanziamento",
+  "pad26_importo_finanziamento",
+  "pad26_match_avviso",
+  "pad26_raccordo_avviso_manuale"
+)
+
+lista_long <- ensure_cols(lista_long, required_long)
+
+required_master <- c(
+  "lista_row_id",
+  "codice_fiscale",
+  "codice_ente_ipa",
+  "ragione_sociale",
+  "codice_reg",
+  "codice_provincia",
+  "codice_comune",
+  "regione_bdap",
+  "provincia",
+  "comune",
+  "desc_fg",
+  "ateco_bdap",
+  "descr_ateco_bdap",
+  "presente_mpa",
+  "presente_s13",
+  "presente_bdap",
+  "in_pad26",
+  "n_candidature_pad26",
+  "n_misure_pad26",
+  "importo_finanziato_pad26"
+)
+
+lista_master <- ensure_cols(lista_master, required_master)
+
+# 11) Dimensione enti ---------------------------------------------------------
+
+dim_enti <- lista_master %>%
+  dplyr::transmute(
+    lista_row_id = safe_int(lista_row_id),
+    
+    pa = safe_id(
+      codice_fiscale,
+      codice_ente_ipa,
+      paste0("LISTA_", lista_row_id)
+    ),
+    
+    codice_fiscale = as.character(codice_fiscale),
+    codice_ipa = as.character(codice_ente_ipa),
+    nome_ente = as.character(ragione_sociale),
+    
+    codice_regione = normalizza_codice_regione(codice_reg),
+    regione = dplyr::coalesce(
+      as.character(regione_bdap),
+      NA_character_
+    ),
+    
+    codice_provincia = normalizza_codice_provincia(codice_provincia),
+    provincia = as.character(provincia),
+    
+    codice_comune = as.character(codice_comune),
+    comune = as.character(comune),
+    
+    forma_giuridica = as.character(desc_fg),
+    ateco = as.character(ateco_bdap),
+    descrizione_ateco = as.character(descr_ateco_bdap),
+    
+    presente_mpa = safe_int(presente_mpa),
+    presente_s13 = safe_int(presente_s13),
+    presente_bdap = safe_int(presente_bdap),
+    
+    in_pad26 = safe_int(in_pad26),
+    n_candidature_pad26 = safe_int(n_candidature_pad26),
+    n_misure_pad26 = safe_int(n_misure_pad26),
+    importo_finanziato_pad26 = safe_num(importo_finanziato_pad26),
+    
+    fonte = FONTE_LABEL,
+    run_id = RUN_ID
   ) %>%
-  assicura_colonne(c(COL$in_pad26, COL$importo), tipo = "numeric")
+  dplyr::distinct(lista_row_id, .keep_all = TRUE)
 
-ha_data <- !is.na(COL$data_candidatura) && COL$data_candidatura %in% names(master)
+stopifnot(
+  nrow(dim_enti) == nrow(lista_master),
+  !anyDuplicated(dim_enti$lista_row_id)
+)
 
-base <- master %>%
-  mutate(
-    pa         = .data[[COL$codice_fiscale]],
-    in_pad26   = dplyr::coalesce(as.integer(.data[[COL$in_pad26]]), 0L),
+# 12) Fact candidature per filtri multipli -----------------------------------
 
-    # chiavi-filtro standard del progetto (vocabolario fil_)
-    fil_reg    = normalizza_codice_regione(.data[[COL$cod_regione]]),
-    fil_prov   = normalizza_codice_provincia(.data[[COL$cod_provincia]]),
-    fil_com    = as.character(.data[[COL$cod_comune]]),
-    fil_fg     = .data[[COL$desc_fg]],
-    fil_avviso = .data[[COL$avviso]],
-
-    # importo: si assume gia' numerico dal raccordo; gli enti senza
-    # candidatura (in_pad26 = 0) contano 0 nella somma.
-    importo    = dplyr::coalesce(suppressWarnings(as.numeric(.data[[COL$importo]])), 0),
-
-    # n. candidature additivo: 1 per ogni riga-candidatura, 0 per i non finanziati
-    n_cand     = as.integer(in_pad26 == 1L)
+fact_dashboard <- lista_long %>%
+  dplyr::filter(
+    safe_int(in_pad26) == 1L,
+    !is.na(pad26_row_id)
   ) %>%
-  mutate(
-    fil_anno = if (ha_data) {
-      format(as.Date(.data[[COL$data_candidatura]]), "%Y")  # base R, niente lubridate
-    } else {
-      as.character(ANNO_RIFERIMENTO)
-    }
+  dplyr::transmute(
+    candidatura_id = as.character(pad26_row_id),
+    lista_row_id = safe_int(lista_row_id),
+    
+    pa = safe_id(
+      codice_fiscale,
+      codice_ente_ipa,
+      paste0("LISTA_", lista_row_id)
+    ),
+    
+    codice_fiscale = as.character(codice_fiscale),
+    codice_ipa = as.character(codice_ente_ipa),
+    nome_ente = as.character(ragione_sociale),
+    
+    # Dimensioni territoriali
+    codice_regione = normalizza_codice_regione(codice_reg),
+    regione = as.character(regione_bdap),
+    codice_provincia = normalizza_codice_provincia(codice_provincia),
+    provincia = as.character(provincia),
+    codice_comune = as.character(codice_comune),
+    comune = as.character(comune),
+    
+    # Dimensioni strutturali
+    forma_giuridica = as.character(desc_fg),
+    ateco = as.character(ateco_bdap),
+    descrizione_ateco = as.character(descr_ateco_bdap),
+    
+    # Dimensioni specifiche PA digitale 2026
+    avviso_originale = as.character(pad26_avviso),
+    titolo_avviso = as.character(pad26_titolo_avviso),
+    misura = as.character(pad26_misura),
+    
+    data_inizio_bando = safe_date(pad26_data_inizio_bando),
+    data_fine_bando = safe_date(pad26_data_fine_bando),
+    anno_inizio_bando = safe_int(pad26_anno_inizio_bando),
+    anno_fine_bando = safe_int(pad26_anno_fine_bando),
+    
+    stato_avviso = as.character(pad26_stato_avviso),
+    soggetti_destinatari = as.character(pad26_soggetti_destinatari),
+    
+    stato_candidatura = as.character(pad26_stato_candidatura),
+    data_invio_candidatura = safe_date(pad26_data_invio_candidatura),
+    anno_invio_candidatura = safe_int(format(safe_date(pad26_data_invio_candidatura), "%Y")),
+    
+    data_finanziamento = safe_date(pad26_data_finanziamento),
+    anno_finanziamento = safe_int(format(safe_date(pad26_data_finanziamento), "%Y")),
+    
+    match_avviso = as.logical(pad26_match_avviso),
+    raccordo_avviso_manuale = as.logical(pad26_raccordo_avviso_manuale),
+    
+    # Misure additive
+    candidature_finanziate = 1L,
+    importo_finanziato = safe_num(pad26_importo_finanziamento),
+    
+    fonte = FONTE_LABEL,
+    run_id = RUN_ID
+  ) %>%
+  dplyr::arrange(misura, titolo_avviso, nome_ente)
+
+stopifnot(
+  nrow(fact_dashboard) ==
+    sum(safe_int(lista_long$in_pad26) == 1L, na.rm = TRUE)
+)
+
+# 13) Dimensione avvisi -------------------------------------------------------
+
+dim_avvisi <- dim_avvisi_input %>%
+  dplyr::mutate(
+    fonte = FONTE_LABEL,
+    run_id = RUN_ID
+  ) %>%
+  dplyr::distinct(avviso_key, .keep_all = TRUE)
+
+# 14) Long EAV compatibile con lo standard -----------------------------------
+
+# Il long EAV resta disponibile per integrazione con altre fonti.
+# La dashboard con filtri multipli deve invece usare fact_dashboard.
+
+base_eav <- fact_dashboard %>%
+  dplyr::transmute(
+    pa,
+    misura,
+    titolo_avviso,
+    anno_finanziamento,
+    codice_regione,
+    codice_provincia,
+    codice_comune,
+    forma_giuridica,
+    ateco,
+    candidature_finanziate,
+    importo_finanziato
   )
 
-message("Anno disponibile per record: ", ha_data,
-        " | enti perimetro: ", n_distinct_nona(base$pa),
-        " | candidature: ", sum(base$n_cand))
-
-
-# 12) Nucleo: emissione di una "lente" di filtro in formato long --------------
-# Aggrega le misure additive (ind1, ind2) per pa x dimensione (+ sub-dim),
-# poi impila gli indicatori in formato long.
-
-emit_fil <- function(df, fil_name, fil_col,
-                     sub_fil_name = NA_character_, sub_fil_col = NA_character_,
-                     includi_non_finanziati = TRUE) {
-
-  d <- df
-  if (!includi_non_finanziati) d <- dplyr::filter(d, in_pad26 == 1L)
-
-  # scarta righe senza valore sulla dimensione di filtro
-  d <- dplyr::filter(d, !is.na(.data[[fil_col]]), .data[[fil_col]] != "")
-
-  group_cols <- c("pa", fil_col)
-  if (!is.na(sub_fil_col)) group_cols <- c(group_cols, sub_fil_col)
-
-  d %>%
-    dplyr::group_by(dplyr::across(dplyr::all_of(group_cols))) %>%
+emit_fil <- function(df, fil_name, fil_col) {
+  df %>%
+    dplyr::filter(
+      !is.na(.data[[fil_col]]),
+      .data[[fil_col]] != ""
+    ) %>%
+    dplyr::group_by(
+      pa,
+      .data[[fil_col]]
+    ) %>%
     dplyr::summarise(
-      ind1 = sum(n_cand, na.rm = TRUE),   # n. candidature finanziate
-      ind2 = sum(importo, na.rm = TRUE),  # importo finanziato (euro)
+      ind1 = sum(candidature_finanziate, na.rm = TRUE),
+      ind2 = sum(importo_finanziato, na.rm = TRUE),
       .groups = "drop"
     ) %>%
-    tidyr::pivot_longer(c(ind1, ind2), names_to = "ind", values_to = "ind_val") %>%
+    tidyr::pivot_longer(
+      c(ind1, ind2),
+      names_to = "ind",
+      values_to = "ind_val"
+    ) %>%
     dplyr::transmute(
       pa,
-      fil         = fil_name,
-      fil_val     = as.character(.data[[fil_col]]),
-      sub_fil     = sub_fil_name,
-      sub_fil_val = if (!is.na(sub_fil_col)) as.character(.data[[sub_fil_col]]) else NA_character_,
+      fil = fil_name,
+      fil_val = as.character(.data[[fil_col]]),
+      sub_fil = NA_character_,
+      sub_fil_val = NA_character_,
       ind,
       ind_val
     )
 }
 
-
-# 13) Costruzione del DB indicatori long --------------------------------------
-# >>> DA DECIDERE: quali lenti tenere. Qui: avviso (specifica PAD26),
-# territoriali (reg/prov/com), forma giuridica, + croci con l'anno.
-
-lenti <- list(
-  emit_fil(base, "fil_avviso", "fil_avviso", includi_non_finanziati = FALSE),
-  emit_fil(base, "fil_reg",  "fil_reg"),
-  emit_fil(base, "fil_prov", "fil_prov"),
-  emit_fil(base, "fil_com",  "fil_com"),
-  emit_fil(base, "fil_fg",   "fil_fg")
-)
-
-# croci temporali solo se esiste una data reale per record
-if (ha_data) {
-  lenti <- c(lenti, list(
-    emit_fil(base, "fil_reg",    "fil_reg",    "fil_anno", "fil_anno"),
-    emit_fil(base, "fil_avviso", "fil_avviso", "fil_anno", "fil_anno",
-             includi_non_finanziati = FALSE)
-  ))
-}
-
-indicatori_long <- dplyr::bind_rows(lenti) %>%
+indicatori_long <- dplyr::bind_rows(
+  emit_fil(base_eav, "fil_misura", "misura"),
+  emit_fil(base_eav, "fil_avviso", "titolo_avviso"),
+  emit_fil(base_eav, "fil_anno", "anno_finanziamento"),
+  emit_fil(base_eav, "fil_reg", "codice_regione"),
+  emit_fil(base_eav, "fil_prov", "codice_provincia"),
+  emit_fil(base_eav, "fil_com", "codice_comune"),
+  emit_fil(base_eav, "fil_fg", "forma_giuridica"),
+  emit_fil(base_eav, "fil_ateco", "ateco")
+) %>%
   dplyr::arrange(ind, fil, fil_val, pa)
 
-message("DB indicatori long creato. Righe: ", nrow(indicatori_long))
+# 15) Metadati indicatori -----------------------------------------------------
 
+metadata_indicatori <- tibble::tribble(
+  ~indicatore, ~label, ~tabella_input, ~formula, ~additivo,
+  ~unita_misura, ~descrizione, ~denominatore, ~note,
+  
+  "candidature_finanziate",
+  "Candidature finanziate",
+  "FACT_PADIGITALE2026_DASHBOARD",
+  "SUM(candidature_finanziate)",
+  TRUE,
+  "numero",
+  "Numero di candidature finanziate dopo l'applicazione dei filtri.",
+  NA_character_,
+  "Può essere sommato dopo aver applicato i filtri.",
+  
+  "importo_finanziato",
+  "Importo finanziato",
+  "FACT_PADIGITALE2026_DASHBOARD",
+  "SUM(importo_finanziato)",
+  TRUE,
+  "euro",
+  "Importo complessivo finanziato alle candidature selezionate.",
+  NA_character_,
+  "Può essere sommato dopo aver applicato i filtri.",
+  
+  "enti_finanziati",
+  "Enti finanziati",
+  "FACT_PADIGITALE2026_DASHBOARD",
+  "N_DISTINCT(pa)",
+  FALSE,
+  "numero",
+  "Numero distinto di enti con almeno una candidatura nel sottoinsieme filtrato.",
+  NA_character_,
+  "Calcolare dopo l'applicazione dei filtri.",
+  
+  "enti_perimetro",
+  "Enti del perimetro",
+  "DIM_ENTI_PADIGITALE2026",
+  "N_DISTINCT(pa)",
+  FALSE,
+  "numero",
+  "Numero distinto di enti nel perimetro di riferimento.",
+  NA_character_,
+  "Il denominatore dipende dai filtri territoriali e strutturali applicati alla dimensione enti.",
+  
+  "copertura_perc",
+  "Copertura degli enti",
+  "FACT + DIM_ENTI",
+  "100 * enti_finanziati / enti_perimetro",
+  FALSE,
+  "%",
+  "Quota di enti del perimetro con almeno una candidatura finanziata.",
+  "enti_perimetro",
+  "I filtri misura/destinatario non restringono automaticamente il denominatore senza una mappa di eleggibilità.",
+  
+  "importo_medio_candidatura",
+  "Importo medio per candidatura",
+  "FACT_PADIGITALE2026_DASHBOARD",
+  "SUM(importo_finanziato) / SUM(candidature_finanziate)",
+  FALSE,
+  "euro",
+  "Importo medio delle candidature selezionate.",
+  "candidature_finanziate",
+  "Calcolare dopo l'applicazione dei filtri.",
+  
+  "importo_medio_ente",
+  "Importo medio per ente finanziato",
+  "FACT_PADIGITALE2026_DASHBOARD",
+  "SUM(importo_finanziato) / N_DISTINCT(pa)",
+  FALSE,
+  "euro",
+  "Importo medio per ente finanziato.",
+  "enti_finanziati",
+  "Calcolare dopo l'applicazione dei filtri.",
+  
+  "candidature_per_ente",
+  "Candidature per ente finanziato",
+  "FACT_PADIGITALE2026_DASHBOARD",
+  "SUM(candidature_finanziate) / N_DISTINCT(pa)",
+  FALSE,
+  "rapporto",
+  "Numero medio di candidature per ente finanziato.",
+  "enti_finanziati",
+  "Calcolare dopo l'applicazione dei filtri.",
+  
+  "importo_per_ente_perimetro",
+  "Importo per ente del perimetro",
+  "FACT + DIM_ENTI",
+  "SUM(importo_finanziato) / enti_perimetro",
+  FALSE,
+  "euro",
+  "Importo finanziato normalizzato per il numero di enti nel perimetro.",
+  "enti_perimetro",
+  "Utile per i confronti territoriali.",
+  
+  "candidature_per_100_enti",
+  "Candidature per 100 enti del perimetro",
+  "FACT + DIM_ENTI",
+  "100 * SUM(candidature_finanziate) / enti_perimetro",
+  FALSE,
+  "numero per 100 enti",
+  "Numero di candidature normalizzato per la dimensione del perimetro.",
+  "enti_perimetro",
+  "Utile per i confronti territoriali."
+) %>%
+  dplyr::mutate(
+    fonte = FONTE_LABEL,
+    ente_editore = ENTE_EDITORE,
+    run_id = RUN_ID,
+    .before = 1
+  )
 
-# 14) Metadati degli indicatori e dei filtri ---------------------------------
-#
-# Sono prodotti tre livelli di documentazione:
-#   1) legenda_indicatori: descrizione logica degli indicatori;
-#   2) legenda_filtri: vocabolario dei filtri;
-#   3) metadata_indicatori: tabella operativa, una riga per ogni
-#      combinazione indicatore x filtro effettivamente disponibile.
-#
-# La tabella metadata_indicatori segue il formato condiviso per la dashboard:
-# Dataset | Dataset Originale | Nome_variabile | Nome_indicatore |
-# Nome_filtro | Nome_sub_filtro | Formula | X1 | X2 | X3 |
-# Anno_di_riferimento | Note
+# 16) Metadati filtri multipli -----------------------------------------------
 
-legenda_indicatori <- tibble::tribble(
-  ~ind, ~label, ~additivo, ~unita_misura, ~formula_descrittiva,
-  ~asse_monitoraggio, ~riforma_pnrr,
-
-  "ind1", "Candidature finanziate", TRUE, "numero",
-  "Somma dei valori di ind1 dopo aver selezionato una sola lente di filtro.",
-  "Transizione digitale della PA", "M1C1 - PA digitale 2026",
-
-  "ind2", "Importo finanziato", TRUE, "euro",
-  "Somma dei valori di ind2 dopo aver selezionato una sola lente di filtro.",
-  "Transizione digitale della PA", "M1C1 - PA digitale 2026",
-
-  "n_enti_finanziati", "Enti finanziati", FALSE, "numero",
-  "Numero distinto di enti con almeno una candidatura finanziata.",
-  "Transizione digitale della PA", "M1C1 - PA digitale 2026",
-
-  "n_enti_perimetro", "Enti del perimetro MPA", FALSE, "numero",
-  "Numero distinto di enti presenti nel perimetro MPA.",
-  "Copertura fonte", "Trasversale",
-
-  "copertura_perc", "Copertura PA digitale 2026", FALSE, "%",
-  "Rapporto percentuale tra enti finanziati ed enti del perimetro MPA.",
-  "Copertura fonte", "M1C1 - PA digitale 2026",
-
-  "importo_medio_candidatura", "Importo medio per candidatura", FALSE, "euro",
-  "Importo finanziato complessivo diviso per il numero di candidature.",
-  "Transizione digitale della PA", "M1C1 - PA digitale 2026",
-
-  "importo_medio_ente", "Importo medio per ente finanziato", FALSE, "euro",
-  "Importo finanziato complessivo diviso per il numero di enti finanziati.",
-  "Transizione digitale della PA", "M1C1 - PA digitale 2026",
-
-  "candidature_per_ente", "Candidature per ente finanziato", FALSE, "rapporto",
-  "Numero di candidature diviso per il numero di enti finanziati.",
-  "Transizione digitale della PA", "M1C1 - PA digitale 2026",
-
-  "n_avvisi", "Avvisi distinti", FALSE, "numero",
-  "Numero distinto di avvisi presenti nella lente fil_avviso.",
-  "Transizione digitale della PA", "M1C1 - PA digitale 2026"
+metadata_filtri <- tibble::tribble(
+  ~filtro, ~label, ~tabella, ~colonna, ~tipo_controllo,
+  ~multiselezione, ~applica_fact, ~applica_dim_enti, ~descrizione, ~note,
+  
+  "misura", "Misura", "FACT_PADIGITALE2026_DASHBOARD", "misura",
+  "selectize", TRUE, TRUE, FALSE,
+  "Misura PA digitale 2026 associata all'avviso.",
+  "Non modifica automaticamente il denominatore di copertura.",
+  
+  "titolo_avviso", "Avviso", "FACT_PADIGITALE2026_DASHBOARD", "titolo_avviso",
+  "selectize", TRUE, TRUE, FALSE,
+  "Titolo ufficiale dell'avviso.",
+  "Usare per il dettaglio; per confronti sintetici preferire misura.",
+  
+  "anno_inizio_bando", "Anno apertura bando", "FACT_PADIGITALE2026_DASHBOARD", "anno_inizio_bando",
+  "selectize", TRUE, TRUE, FALSE,
+  "Anno di apertura del bando.",
+  NA_character_,
+  
+  "anno_finanziamento", "Anno finanziamento", "FACT_PADIGITALE2026_DASHBOARD", "anno_finanziamento",
+  "selectize", TRUE, TRUE, FALSE,
+  "Anno della data di finanziamento della candidatura.",
+  NA_character_,
+  
+  "soggetti_destinatari", "Soggetti destinatari", "FACT_PADIGITALE2026_DASHBOARD", "soggetti_destinatari",
+  "selectize", TRUE, TRUE, FALSE,
+  "Categorie destinatarie dichiarate nell'avviso.",
+  "Campo descrittivo; può contenere più categorie nello stesso valore.",
+  
+  "stato_avviso", "Stato avviso", "FACT_PADIGITALE2026_DASHBOARD", "stato_avviso",
+  "selectize", TRUE, TRUE, FALSE,
+  "Stato amministrativo dell'avviso.",
+  "Non equivale allo stato di avanzamento del progetto.",
+  
+  "stato_candidatura", "Stato candidatura", "FACT_PADIGITALE2026_DASHBOARD", "stato_candidatura",
+  "selectize", TRUE, TRUE, FALSE,
+  "Stato della candidatura.",
+  NA_character_,
+  
+  "codice_regione", "Regione", "FACT + DIM_ENTI", "codice_regione",
+  "selectize", TRUE, TRUE, TRUE,
+  "Codice regione dell'ente.",
+  "Filtro valido sia per numeratore sia per denominatore.",
+  
+  "codice_provincia", "Provincia", "FACT + DIM_ENTI", "codice_provincia",
+  "selectize", TRUE, TRUE, TRUE,
+  "Codice provincia dell'ente.",
+  "Filtro valido sia per numeratore sia per denominatore.",
+  
+  "codice_comune", "Comune", "FACT + DIM_ENTI", "codice_comune",
+  "selectize", TRUE, TRUE, TRUE,
+  "Codice comune dell'ente.",
+  "Filtro valido sia per numeratore sia per denominatore.",
+  
+  "forma_giuridica", "Forma giuridica", "FACT + DIM_ENTI", "forma_giuridica",
+  "selectize", TRUE, TRUE, TRUE,
+  "Forma giuridica dell'ente.",
+  "Filtro valido sia per numeratore sia per denominatore.",
+  
+  "ateco", "ATECO", "FACT + DIM_ENTI", "ateco",
+  "selectize", TRUE, TRUE, TRUE,
+  "Codice ATECO BDAP dell'ente.",
+  "Filtro valido sia per numeratore sia per denominatore."
 ) %>%
   dplyr::mutate(
     fonte = FONTE_LABEL,
@@ -397,385 +748,405 @@ legenda_indicatori <- tibble::tribble(
     .before = 1
   )
 
-legenda_filtri <- tibble::tribble(
-  ~fil, ~descrizione,
-  "fil_reg",    "Codice regione ISTAT a 2 cifre dell'ente",
-  "fil_prov",   "Codice provincia ISTAT a 3 cifre dell'ente",
-  "fil_com",    "Codice comune dell'ente",
-  "fil_fg",     "Forma giuridica dell'ente, derivata da desc_fg",
-  "fil_avviso", "Avviso o misura PA digitale 2026",
-  "fil_anno",   "Anno della candidatura, utilizzato anche come sotto-filtro"
+# 17) Metadati variabili dei nuovi file --------------------------------------
+
+metadata_variabili <- dplyr::bind_rows(
+  tibble::tribble(
+    ~dataset, ~variabile, ~tipo, ~ruolo, ~descrizione,
+    
+    "FACT_PADIGITALE2026_DASHBOARD", "candidatura_id", "character", "chiave",
+    "Identificativo della riga candidatura.",
+    
+    "FACT_PADIGITALE2026_DASHBOARD", "pa", "character", "chiave ente",
+    "Identificativo dell'ente usato per conteggi distinti e raccordi.",
+    
+    "FACT_PADIGITALE2026_DASHBOARD", "nome_ente", "character", "label",
+    "Denominazione leggibile dell'ente.",
+    
+    "FACT_PADIGITALE2026_DASHBOARD", "misura", "character", "filtro",
+    "Misura PA digitale 2026 associata all'avviso.",
+    
+    "FACT_PADIGITALE2026_DASHBOARD", "titolo_avviso", "character", "filtro",
+    "Titolo ufficiale dell'avviso.",
+    
+    "FACT_PADIGITALE2026_DASHBOARD", "anno_inizio_bando", "integer", "filtro",
+    "Anno di apertura del bando.",
+    
+    "FACT_PADIGITALE2026_DASHBOARD", "anno_finanziamento", "integer", "filtro",
+    "Anno di finanziamento della candidatura.",
+    
+    "FACT_PADIGITALE2026_DASHBOARD", "soggetti_destinatari", "character", "filtro",
+    "Categorie destinatarie dichiarate nell'avviso.",
+    
+    "FACT_PADIGITALE2026_DASHBOARD", "stato_avviso", "character", "filtro",
+    "Stato amministrativo dell'avviso.",
+    
+    "FACT_PADIGITALE2026_DASHBOARD", "stato_candidatura", "character", "filtro",
+    "Stato della candidatura.",
+    
+    "FACT_PADIGITALE2026_DASHBOARD", "codice_regione", "character", "filtro",
+    "Codice regione dell'ente.",
+    
+    "FACT_PADIGITALE2026_DASHBOARD", "forma_giuridica", "character", "filtro",
+    "Forma giuridica dell'ente.",
+    
+    "FACT_PADIGITALE2026_DASHBOARD", "ateco", "character", "filtro",
+    "Codice ATECO BDAP dell'ente.",
+    
+    "FACT_PADIGITALE2026_DASHBOARD", "candidature_finanziate", "integer", "misura",
+    "Valore additivo pari a 1 per ciascuna candidatura.",
+    
+    "FACT_PADIGITALE2026_DASHBOARD", "importo_finanziato", "numeric", "misura",
+    "Importo finanziato associato alla candidatura.",
+    
+    "DIM_ENTI_PADIGITALE2026", "pa", "character", "chiave ente",
+    "Identificativo univoco dell'ente.",
+    
+    "DIM_ENTI_PADIGITALE2026", "nome_ente", "character", "label",
+    "Denominazione leggibile dell'ente.",
+    
+    "DIM_ENTI_PADIGITALE2026", "presente_mpa", "integer", "perimetro",
+    "Indica se l'ente appartiene al perimetro MPA.",
+    
+    "DIM_ENTI_PADIGITALE2026", "presente_s13", "integer", "perimetro",
+    "Indica se l'ente appartiene al perimetro S13.",
+    
+    "DIM_ENTI_PADIGITALE2026", "presente_bdap", "integer", "perimetro",
+    "Indica se l'ente è presente in BDAP."
+  )
 ) %>%
   dplyr::mutate(
-    fonte = FONTE_LABEL,
-    run_id = RUN_ID,
-    .before = 1
-  )
-
-# Formule operative per la dashboard.
-# X1, X2 e X3 indicano gli operandi richiamati nella colonna formula.
-regole_indicatori <- tibble::tribble(
-  ~nome_variabile, ~nome_indicatore_base, ~formula, ~x1, ~x2, ~x3,
-  ~filtri_ammessi, ~note_formula,
-
-  "ind1", "PAD26_candidature_finanziate", "SUM(X1)",
-  "ind_val con ind = 'ind1'", NA_character_, NA_character_,
-  "tutti",
-  "Indicatore additivo. Non sommare valori appartenenti a lenti di filtro diverse.",
-
-  "ind2", "PAD26_importo_finanziato", "SUM(X1)",
-  "ind_val con ind = 'ind2'", NA_character_, NA_character_,
-  "tutti",
-  "Indicatore additivo espresso in euro.",
-
-  "n_enti_finanziati", "PAD26_enti_finanziati", "N_DISTINCT(X1)",
-  "pa con ind = 'ind1' e ind_val > 0", NA_character_, NA_character_,
-  "tutti",
-  "Calcolare dopo aver selezionato una sola combinazione di filtro e sotto-filtro.",
-
-  "n_enti_perimetro", "PAD26_enti_perimetro_MPA", "N_DISTINCT(X1)",
-  "pa", NA_character_, NA_character_,
-  "perimetro",
-  "Non applicabile alla lente fil_avviso, che contiene soltanto enti finanziati.",
-
-  "copertura_perc", "PAD26_copertura_percentuale", "100 * X1 / X2",
-  "n_enti_finanziati", "n_enti_perimetro", NA_character_,
-  "perimetro",
-  "Restituire NA quando X2 è nullo o uguale a zero.",
-
-  "importo_medio_candidatura", "PAD26_importo_medio_candidatura", "X1 / X2",
-  "SUM(ind_val con ind = 'ind2')", "SUM(ind_val con ind = 'ind1')", NA_character_,
-  "tutti",
-  "Restituire NA quando X2 è nullo o uguale a zero.",
-
-  "importo_medio_ente", "PAD26_importo_medio_ente", "X1 / X2",
-  "SUM(ind_val con ind = 'ind2')", "n_enti_finanziati", NA_character_,
-  "tutti",
-  "Restituire NA quando X2 è nullo o uguale a zero.",
-
-  "candidature_per_ente", "PAD26_candidature_per_ente", "X1 / X2",
-  "SUM(ind_val con ind = 'ind1')", "n_enti_finanziati", NA_character_,
-  "tutti",
-  "Restituire NA quando X2 è nullo o uguale a zero.",
-
-  "n_avvisi", "PAD26_avvisi_distinti", "N_DISTINCT(X1)",
-  "fil_val con fil = 'fil_avviso'", NA_character_, NA_character_,
-  "solo_avviso",
-  "Applicabile esclusivamente alla lente fil_avviso."
-)
-
-# Combinazioni di filtro realmente presenti nel file indicatori.
-filtri_disponibili <- indicatori_long %>%
-  dplyr::distinct(fil, sub_fil) %>%
-  dplyr::mutate(
-    sub_fil = dplyr::na_if(sub_fil, ""),
-    suffisso_filtro = stringr::str_remove(fil, "^fil_") %>%
-      stringr::str_to_upper(),
-    suffisso_sub_filtro = dplyr::if_else(
-      is.na(sub_fil),
-      NA_character_,
-      stringr::str_remove(sub_fil, "^fil_") %>% stringr::str_to_upper()
-    )
-  )
-
-anni_disponibili <- sort(unique(stats::na.omit(base$fil_anno)))
-anno_metadata <- if (length(anni_disponibili) == 0L) {
-  as.character(ANNO_RIFERIMENTO)
-} else {
-  paste(anni_disponibili, collapse = " | ")
-}
-
-metadata_indicatori <- tidyr::crossing(
-  regole_indicatori,
-  filtri_disponibili
-) %>%
-  dplyr::filter(
-    filtri_ammessi == "tutti" |
-      (filtri_ammessi == "perimetro" & fil != "fil_avviso") |
-      (filtri_ammessi == "solo_avviso" & fil == "fil_avviso")
-  ) %>%
-  dplyr::left_join(
-    legenda_indicatori %>%
-      dplyr::select(
-        ind,
-        label,
-        additivo,
-        unita_misura,
-        formula_descrittiva,
-        asse_monitoraggio,
-        riforma_pnrr
-      ),
-    by = c("nome_variabile" = "ind")
-  ) %>%
-  dplyr::left_join(
-    legenda_filtri %>%
-      dplyr::select(fil, descrizione_filtro = descrizione),
-    by = "fil"
-  ) %>%
-  dplyr::mutate(
-    dataset = "INDICATORS_PADIGITALE2026",
-    dataset_originale = NOME_FILE_MASTER,
-    nome_indicatore = paste0(
-      nome_indicatore_base,
-      "_",
-      suffisso_filtro,
-      dplyr::if_else(
-        is.na(suffisso_sub_filtro),
-        "",
-        paste0("_", suffisso_sub_filtro)
-      )
-    ),
-    nome_filtro = fil,
-    nome_sub_filtro = sub_fil,
-    anno_di_riferimento = anno_metadata,
-    note = paste(
-      label,
-      note_formula,
-      formula_descrittiva,
-      sep = " | "
-    ),
     fonte = FONTE_LABEL,
     run_id = RUN_ID
-  ) %>%
-  dplyr::select(
-    dataset,
-    dataset_originale,
-    nome_variabile,
-    nome_indicatore,
-    nome_filtro,
-    nome_sub_filtro,
+  )
+
+
+# 17.1) Export compatibile con lo schema condiviso del gruppo -----------------
+#
+# Una riga per combinazione indicatore x filtro disponibile.
+# Questo file serve come formato comune di documentazione.
+# La dashboard multifiltro continua a leggere FACT_PADIGITALE2026_DASHBOARD
+# e DIM_ENTI_PADIGITALE2026.
+
+indicatori_con_perimetro <- c(
+  "enti_perimetro",
+  "copertura_perc",
+  "importo_per_ente_perimetro",
+  "candidature_per_100_enti"
+)
+
+# Selezioniamo e rinominiamo esplicitamente i campi necessari prima del
+# crossing. In questo modo non si creano suffissi .x/.y e non restano
+# riferimenti fragili come label.y.
+metadata_indicatori_per_standard <- metadata_indicatori %>%
+  dplyr::transmute(
+    indicatore,
+    label_indicatore = label,
+    tabella_input,
     formula,
-    x1,
-    x2,
-    x3,
-    anno_di_riferimento,
-    note,
-    label,
-    descrizione_filtro,
-    additivo,
-    unita_misura,
-    asse_monitoraggio,
-    riforma_pnrr,
-    fonte,
-    run_id
+    descrizione_indicatore = descrizione,
+    note_indicatore = note
+  )
+
+metadata_filtri_per_standard <- metadata_filtri %>%
+  dplyr::transmute(
+    filtro,
+    label_filtro = label,
+    applica_dim_enti,
+    descrizione_filtro = descrizione,
+    note_filtro = note
+  )
+
+metadata_indicatori_standard <- tidyr::crossing(
+  metadata_indicatori_per_standard,
+  metadata_filtri_per_standard
+) %>%
+  dplyr::filter(
+    # Gli indicatori che richiedono il denominatore del perimetro sono
+    # documentati soltanto per i filtri applicabili anche a DIM_ENTI.
+    !(indicatore %in% indicatori_con_perimetro) |
+      applica_dim_enti %in% TRUE
   ) %>%
-  dplyr::arrange(nome_variabile, nome_filtro, nome_sub_filtro)
-
-# Dizionario dei campi del file di metadati.
-dizionario_campi_metadata <- tibble::tribble(
-  ~campo, ~descrizione,
-  "dataset", "Nome tecnico del file di indicatori cui si riferisce il metadato.",
-  "dataset_originale", "File sorgente usato per produrre gli indicatori.",
-  "nome_variabile", "Codice della variabile o dell'indicatore logico.",
-  "nome_indicatore", "Identificativo univoco dell'indicatore per la specifica lente di filtro.",
-  "nome_filtro", "Dimensione principale di filtro da applicare alla dashboard.",
-  "nome_sub_filtro", "Eventuale seconda dimensione di filtro.",
-  "formula", "Espressione operativa dell'indicatore espressa mediante X1, X2 e X3.",
-  "x1", "Primo operando della formula.",
-  "x2", "Secondo operando della formula.",
-  "x3", "Terzo operando della formula, quando necessario.",
-  "anno_di_riferimento", "Anno o insieme di anni presenti nei dati.",
-  "note", "Spiegazione sintetica e regole di aggregazione.",
-  "label", "Etichetta leggibile dell'indicatore.",
-  "descrizione_filtro", "Descrizione della dimensione di filtro.",
-  "additivo", "TRUE se l'indicatore può essere sommato dopo aver selezionato una sola lente.",
-  "unita_misura", "Unità di misura dell'indicatore.",
-  "asse_monitoraggio", "Asse analitico o di monitoraggio.",
-  "riforma_pnrr", "Riferimento alla misura o componente PNRR.",
-  "fonte", "Fonte amministrativa dei dati.",
-  "run_id", "Identificativo temporale del run che ha prodotto i metadati."
-)
-
-message(
-  "Metadati indicatori creati. Righe: ",
-  nrow(metadata_indicatori)
-)
-
-
-# 15) Salvataggio output e metadati su Drive ---------------------------------
-# Versioning per cartella RUN_ID, coerente con l'architettura del progetto.
-
-salva <- function(obj, base_filename, formati = c("rds", "csv", "json")) {
-  paths <- character()
-
-  if ("rds" %in% formati) {
-    p <- file.path(DIR_PAD26_INDICATORS_LOCAL, paste0(base_filename, ".rds"))
-    saveRDS(obj, p)
-    drive_upload_or_update(p, DRIVE_PAD26_INDICATORS)
-    paths <- c(paths, p)
-  }
-
-  if ("csv" %in% formati) {
-    p <- file.path(DIR_PAD26_INDICATORS_LOCAL, paste0(base_filename, ".csv"))
-    readr::write_csv(obj, p, na = "")
-    drive_upload_or_update(p, DRIVE_PAD26_INDICATORS)
-    paths <- c(paths, p)
-  }
-
-  if ("json" %in% formati) {
-    p <- file.path(DIR_PAD26_INDICATORS_LOCAL, paste0(base_filename, ".json"))
-    jsonlite::write_json(
-      obj,
-      p,
-      pretty = TRUE,
-      dataframe = "rows",
-      na = "null",
-      null = "null",
-      auto_unbox = TRUE,
-      Date = "ISO8601",
-      POSIXt = "ISO8601",
-      digits = NA
-    )
-    drive_upload_or_update(p, DRIVE_PAD26_INDICATORS)
-    paths <- c(paths, p)
-  }
-
-  if (!all(file.exists(paths))) {
-    stop(
-      "Uno o più file non sono stati salvati per ",
-      base_filename
-    )
-  }
-
-  message("Salvato: ", base_filename)
-  invisible(paths)
-}
-
-salva_metadata_xlsx <- function(
-    metadata,
-    legenda_indicatori,
-    legenda_filtri,
-    dizionario_campi,
-    base_filename
-) {
-  p <- file.path(
-    DIR_PAD26_INDICATORS_LOCAL,
-    paste0(base_filename, ".xlsx")
-  )
-
-  wb <- openxlsx::createWorkbook()
-
-  fogli <- list(
-    "Metadati indicatori" = metadata %>%
-      dplyr::rename(
-        Dataset = dataset,
-        `Dataset Originale` = dataset_originale,
-        Nome_variabile = nome_variabile,
-        Nome_indicatore = nome_indicatore,
-        Nome_filtro = nome_filtro,
-        Nome_sub_filtro = nome_sub_filtro,
-        Formula = formula,
-        X1 = x1,
-        X2 = x2,
-        X3 = x3,
-        Anno_di_riferimento = anno_di_riferimento,
-        Note = note
+  dplyr::mutate(
+    nome_indicatore_standard = paste0(
+      "PAD26_",
+      stringr::str_to_upper(indicatore),
+      "_",
+      stringr::str_to_upper(filtro)
+    ),
+    
+    x1_standard = dplyr::case_when(
+      indicatore == "candidature_finanziate" ~
+        "candidature_finanziate",
+      
+      indicatore == "importo_finanziato" ~
+        "importo_finanziato",
+      
+      indicatore == "enti_finanziati" ~
+        "pa",
+      
+      indicatore == "enti_perimetro" ~
+        "pa",
+      
+      indicatore == "copertura_perc" ~
+        "enti_finanziati",
+      
+      indicatore == "importo_medio_candidatura" ~
+        "importo_finanziato",
+      
+      indicatore == "importo_medio_ente" ~
+        "importo_finanziato",
+      
+      indicatore == "candidature_per_ente" ~
+        "candidature_finanziate",
+      
+      indicatore == "importo_per_ente_perimetro" ~
+        "importo_finanziato",
+      
+      indicatore == "candidature_per_100_enti" ~
+        "candidature_finanziate",
+      
+      TRUE ~ NA_character_
+    ),
+    
+    x2_standard = dplyr::case_when(
+      indicatore == "copertura_perc" ~
+        "enti_perimetro",
+      
+      indicatore == "importo_medio_candidatura" ~
+        "candidature_finanziate",
+      
+      indicatore == "importo_medio_ente" ~
+        "enti_finanziati",
+      
+      indicatore == "candidature_per_ente" ~
+        "enti_finanziati",
+      
+      indicatore == "importo_per_ente_perimetro" ~
+        "enti_perimetro",
+      
+      indicatore == "candidature_per_100_enti" ~
+        "enti_perimetro",
+      
+      TRUE ~ NA_character_
+    ),
+    
+    anno_metadata = paste(
+      sort(
+        unique(
+          stats::na.omit(
+            fact_dashboard$anno_finanziamento
+          )
+        )
       ),
-    "Legenda indicatori" = legenda_indicatori,
-    "Legenda filtri" = legenda_filtri,
-    "Dizionario campi" = dizionario_campi
+      collapse = " | "
+    ),
+    
+    note_standard = paste(
+      descrizione_indicatore,
+      note_indicatore,
+      paste0("Filtro: ", label_filtro, "."),
+      descrizione_filtro,
+      note_filtro,
+      sep = " | "
+    )
+  ) %>%
+  dplyr::transmute(
+    `Dataset Originale` = dplyr::case_when(
+      tabella_input == "DIM_ENTI_PADIGITALE2026" ~
+        "DIM_ENTI_PADIGITALE2026.json",
+      
+      tabella_input == "FACT + DIM_ENTI" ~
+        paste0(
+          "FACT_PADIGITALE2026_DASHBOARD.json + ",
+          "DIM_ENTI_PADIGITALE2026.json"
+        ),
+      
+      TRUE ~
+        "FACT_PADIGITALE2026_DASHBOARD.json"
+    ),
+    
+    Nome_variabile = indicatore,
+    Nome_indicatore = nome_indicatore_standard,
+    Nome_filtro = filtro,
+    Nome_sub_filtro = NA_character_,
+    Formula = formula,
+    X1 = x1_standard,
+    X2 = x2_standard,
+    X3 = NA_character_,
+    Anno_di_riferimento = anno_metadata,
+    Note = note_standard
+  ) %>%
+  dplyr::arrange(
+    Nome_variabile,
+    Nome_filtro
   )
 
-  header_style <- openxlsx::createStyle(
-    textDecoration = "bold",
-    halign = "center",
-    valign = "center",
-    wrapText = TRUE,
-    border = "Bottom"
+# 18) Controlli ---------------------------------------------------------------
+
+check_output <- tibble::tibble(
+  controllo = c(
+    "righe_fact",
+    "candidature_input",
+    "enti_dimensione",
+    "enti_input",
+    "fact_pa_missing",
+    "fact_misura_missing",
+    "fact_importo_missing",
+    "duplicati_candidatura_id"
+  ),
+  valore = c(
+    nrow(fact_dashboard),
+    sum(safe_int(lista_long$in_pad26) == 1L, na.rm = TRUE),
+    nrow(dim_enti),
+    nrow(lista_master),
+    sum(is.na(fact_dashboard$pa) | fact_dashboard$pa == ""),
+    sum(is.na(fact_dashboard$misura) | fact_dashboard$misura == ""),
+    sum(is.na(fact_dashboard$importo_finanziato)),
+    sum(duplicated(fact_dashboard$candidatura_id))
   )
+)
 
-  for (nome_foglio in names(fogli)) {
-    openxlsx::addWorksheet(wb, nome_foglio)
-    openxlsx::writeData(
-      wb,
-      sheet = nome_foglio,
-      x = fogli[[nome_foglio]],
-      withFilter = TRUE,
-      headerStyle = header_style,
-      keepNA = FALSE
-    )
-    openxlsx::freezePane(wb, nome_foglio, firstRow = TRUE)
-    openxlsx::setColWidths(wb, nome_foglio, cols = 1:ncol(fogli[[nome_foglio]]), widths = "auto")
-    openxlsx::setColWidths(
-      wb,
-      nome_foglio,
-      cols = 1:ncol(fogli[[nome_foglio]]),
-      widths = pmin(45, pmax(12, nchar(names(fogli[[nome_foglio]])) + 3))
-    )
-    openxlsx::addStyle(
-      wb,
-      nome_foglio,
-      style = openxlsx::createStyle(wrapText = TRUE, valign = "top"),
-      rows = 2:(nrow(fogli[[nome_foglio]]) + 1),
-      cols = 1:ncol(fogli[[nome_foglio]]),
-      gridExpand = TRUE,
-      stack = TRUE
-    )
-  }
-
-  openxlsx::saveWorkbook(wb, p, overwrite = TRUE)
-
-  if (!file.exists(p)) {
-    stop("File XLSX dei metadati non salvato: ", p)
-  }
-
-  drive_upload_or_update(p, DRIVE_PAD26_INDICATORS)
-  message("Salvato: ", basename(p))
-  invisible(p)
+if (check_output$valore[check_output$controllo == "duplicati_candidatura_id"] > 0L) {
+  warning("Sono presenti candidatura_id duplicate nella fact table.")
 }
 
-# File principale degli indicatori.
-salva(
+# 19) Salvataggio dati --------------------------------------------------------
+
+salva_output(
   indicatori_long,
-  "INDICATORS_PADIGITALE2026"
-)
-
-# Metadati operativi per la dashboard: CSV e JSON.
-salva(
-  metadata_indicatori,
-  "MET_INDICATORS_PADIGITALE2026",
-  formati = c("csv", "json")
-)
-
-# Workbook leggibile per gli utenti, con spiegazioni e dizionari.
-salva_metadata_xlsx(
-  metadata = metadata_indicatori,
-  legenda_indicatori = legenda_indicatori,
-  legenda_filtri = legenda_filtri,
-  dizionario_campi = dizionario_campi_metadata,
-  base_filename = "MET_INDICATORS_PADIGITALE2026"
-)
-
-# Mantiene anche i vocabolari separati in formato macchina.
-salva(
-  legenda_indicatori,
-  "MET_LEGENDA_INDICATORS_PADIGITALE2026",
-  formati = c("csv", "json")
-)
-
-salva(
-  legenda_filtri,
-  "MET_FILTRI_PADIGITALE2026",
-  formati = c("csv", "json")
-)
-
-message(
-  "Indicatori e metadati PA digitale 2026 caricati in: ",
+  "INDICATORS_PADIGITALE2026",
+  DIR_PAD26_INDICATORS_LOCAL,
   DRIVE_PAD26_INDICATORS
 )
 
+salva_output(
+  fact_dashboard,
+  "FACT_PADIGITALE2026_DASHBOARD",
+  DIR_PAD26_INDICATORS_LOCAL,
+  DRIVE_PAD26_INDICATORS
+)
 
-# 16) Chiusura console log ----------------------------------------------------
+salva_output(
+  dim_enti,
+  "DIM_ENTI_PADIGITALE2026",
+  DIR_PAD26_INDICATORS_LOCAL,
+  DRIVE_PAD26_INDICATORS
+)
 
-console_log_path <- stop_console_log(console_log, status = "completed")
-drive_upload_or_update(local_path = console_log_path, drive_folder_rel = DRIVE_PAD26_LOGS)
+salva_output(
+  dim_avvisi,
+  "DIM_AVVISI_PADIGITALE2026",
+  DIR_PAD26_INDICATORS_LOCAL,
+  DRIVE_PAD26_INDICATORS
+)
+
+# 20) Salvataggio metadati ----------------------------------------------------
+
+salva_output(
+  metadata_indicatori,
+  "MET_INDICATORS_PADIGITALE2026",
+  DIR_PAD26_METADATA_LOCAL,
+  DRIVE_PAD26_METADATA,
+  formati = c("csv", "json"),
+  pretty_json = TRUE
+)
+
+salva_output(
+  metadata_filtri,
+  "MET_FILTERS_PADIGITALE2026",
+  DIR_PAD26_METADATA_LOCAL,
+  DRIVE_PAD26_METADATA,
+  formati = c("csv", "json"),
+  pretty_json = TRUE
+)
+
+salva_output(
+  metadata_variabili,
+  "MET_VARIABLES_PADIGITALE2026",
+  DIR_PAD26_METADATA_LOCAL,
+  DRIVE_PAD26_METADATA,
+  formati = c("csv", "json"),
+  pretty_json = TRUE
+)
+
+salva_output(
+  check_output,
+  "CHECK_INDICATORS_PADIGITALE2026",
+  DIR_PAD26_METADATA_LOCAL,
+  DRIVE_PAD26_METADATA,
+  formati = c("csv", "json"),
+  pretty_json = TRUE
+)
 
 
-# 17) Pulizia file temporanei -------------------------------------------------
+# Export con lo stesso schema del file Indicators_PagoPA.
+salva_output(
+  metadata_indicatori_standard,
+  "Indicators_PADigitale2026",
+  DIR_PAD26_METADATA_LOCAL,
+  DRIVE_PAD26_METADATA,
+  formati = c("csv"),
+  pretty_json = FALSE
+)
+
+local_indicators_standard_xlsx <- file.path(
+  DIR_PAD26_METADATA_LOCAL,
+  "Indicators_PADigitale2026.xlsx"
+)
+
+openxlsx::write.xlsx(
+  x = metadata_indicatori_standard,
+  file = local_indicators_standard_xlsx,
+  overwrite = TRUE
+)
+
+drive_upload_or_update(
+  local_path = local_indicators_standard_xlsx,
+  drive_folder_rel = DRIVE_PAD26_METADATA
+)
+
+# Workbook leggibile.
+metadata_xlsx <- file.path(
+  DIR_PAD26_METADATA_LOCAL,
+  "MET_PADIGITALE2026_DASHBOARD.xlsx"
+)
+
+openxlsx::write.xlsx(
+  x = list(
+    "Indicatori" = metadata_indicatori,
+    "Indicatori standard" = metadata_indicatori_standard,
+    "Filtri" = metadata_filtri,
+    "Variabili" = metadata_variabili,
+    "Controlli" = check_output
+  ),
+  file = metadata_xlsx,
+  overwrite = TRUE
+)
+
+drive_upload_or_update(
+  local_path = metadata_xlsx,
+  drive_folder_rel = DRIVE_PAD26_METADATA
+)
+
+# 21) Chiusura ---------------------------------------------------------------
+
+console_log_path <- stop_console_log(
+  console_log,
+  status = "completed"
+)
+
+drive_upload_or_update(
+  local_path = console_log_path,
+  drive_folder_rel = DRIVE_PAD26_LOGS
+)
 
 if (delete_local_temp) {
-  unlink(file.path(DIR_TEMP, "PADigitale2026", "Indicatori", RUN_ID), recursive = TRUE)
-  unlink(file.path(DIR_TEMP, "PADigitale2026", "Processed", RUN_ID_RACCORDO), recursive = TRUE)
+  unlink(DIR_PAD26_PROCESSED_INPUT_LOCAL, recursive = TRUE)
+  unlink(DIR_PAD26_INDICATORS_LOCAL, recursive = TRUE)
+  unlink(DIR_PAD26_METADATA_LOCAL, recursive = TRUE)
 }
 
-message("--- 03_indicatori_padigitale2026 completato. RUN_ID: ", RUN_ID, " ---")
+message("Indicatori: ", DRIVE_PAD26_INDICATORS)
+message("Metadati: ", DRIVE_PAD26_METADATA)
+message("--- Script completato. RUN_ID: ", RUN_ID, " ---")

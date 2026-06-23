@@ -199,7 +199,7 @@ sim_leggi_lista_mpa <- function(pattern = "MPA") {
     )
 }
 
-# 6)
+# 6) CA
 
 ca_drive_files <- function(anno, sottocartella) {
   dir <- sim_drive_ls_path(
@@ -209,6 +209,7 @@ ca_drive_files <- function(anno, sottocartella) {
   googledrive::drive_ls(dir)
 }
 
+# In 02_costruzione_master
 ca_read_dataset <- function(anno, pattern, dataset_nome) {
   files <- ca_find_file(anno, "Dati", pattern)
   

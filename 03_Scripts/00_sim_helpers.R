@@ -56,8 +56,7 @@ sim_drive_root <- function() {
 
 # Serve per trovare una cartella Drive a partire da un path relativo,
 # tipo: sim_drive_ls_path("01_Dataset/Processed/Conto_annuale")
-  
-  sim_drive_ls_path("01_Dataset/Processed/Conto_annuale")
+# sim_drive_ls_path("01_Dataset/Processed/Conto_annuale")
 sim_drive_ls_path <- function(path, create = FALSE) {
   # path relativo alla root Drive, ad esempio "01_Dataset/Source/Conto_annuale"
   root <- sim_drive_root()

@@ -13,9 +13,18 @@ rm(list = ls())
 source("03_Scripts/00_config.R")
 source("03_Scripts/00_sim_helpers.R")
 
-drive_auth(scopes = "https://www.googleapis.com/auth/drive")
+if (exists("SIM_DRIVE_EMAIL")) {
+  googledrive::drive_auth(
+    email = SIM_DRIVE_EMAIL,
+    scopes = "https://www.googleapis.com/auth/drive"
+  )
+} else {
+  googledrive::drive_auth(scopes = "https://www.googleapis.com/auth/drive")
+}
 
 anni_ca <- c(2021, 2022, 2023)
+
+
 
 # Cartella Drive di destinazione
 sim_drive_mkdir_path(file.path(DRIVE_DIR_SOURCE, "Conto_annuale"))
@@ -55,4 +64,42 @@ log_acquisizione <- purrr::map_dfr(anni_ca, function(anno) {
 sim_log_upload(log_acquisizione, fonte = "Conto_annuale", tipo_log = "acquisizione")
 
 print(log_acquisizione)
-message("Acquisizione verificata su Drive. Se i file risultano gia_presenti, passa allo script 02.")
+
+message("--------------------------------------------------")
+message("LOG ACQUISIZIONE CONTO ANNUALE")
+message("--------------------------------------------------")
+
+for(i in seq_len(nrow(log_acquisizione))) {
+  
+  message(
+    "Anno: ", log_acquisizione$anno[i],
+    " | Stato: ", log_acquisizione$status[i],
+    " | File anagrafica: ", log_acquisizione$n_file_anag[i],
+    " | File dati: ", log_acquisizione$n_file_dati[i]
+  )
+  
+}
+
+message("--------------------------------------------------")
+message(
+  "Totale anni verificati: ",
+  nrow(log_acquisizione)
+)
+
+message(
+  "Anni completi: ",
+  sum(log_acquisizione$status == "gia_presente_su_drive", na.rm = TRUE)
+)
+
+message(
+  "Anni da completare: ",
+  sum(log_acquisizione$status != "gia_presente_su_drive", na.rm = TRUE)
+)
+
+message("--------------------------------------------------")
+message(
+  "Acquisizione verificata su Drive. ",
+  "Se tutti gli anni risultano 'gia_presente_su_drive', ",
+  "procedere con lo script 02."
+)
+message("--------------------------------------------------")

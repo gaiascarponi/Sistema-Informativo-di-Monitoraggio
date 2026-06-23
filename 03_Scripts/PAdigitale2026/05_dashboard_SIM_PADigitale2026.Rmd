@@ -5,11 +5,14 @@ output:
     orientation: columns
     vertical_layout: scroll
     theme: cosmo
-    self_contained: true
+    self_contained: false
+runtime: shiny
 params:
-  file_indicatori_long: null
-  file_indicatori_wide: null
+  file_fact_dashboard: null
+  file_dim_enti: null
+  file_dim_avvisi: null
   file_metadata_indicatori: null
+  file_metadata_filtri: null
   run_id_indicatori: null
   anno_nuts: 2024
   risoluzione_nuts: "10"
@@ -34,620 +37,1503 @@ suppressPackageStartupMessages({
   library(sf)
   library(htmltools)
   library(flexdashboard)
+  library(shiny)
+  library(readr)
+  library(openxlsx)
 })
 
 source("03_Scripts/00_config.R")
 source("03_Scripts/00_spatial_helpers.R")
 
-stop_if_missing <- function(path, label) {
-  if (is.null(path) || !nzchar(path) || !file.exists(path)) {
-    stop(label, " non trovato: ", path %||% "<NULL>")
+`%||%` <- function(x, y) {
+  if (
+    is.null(x) ||
+    length(x) == 0L ||
+    all(is.na(x)) ||
+    !nzchar(as.character(x[[1]]))
+  ) {
+    y
+  } else {
+    x
   }
 }
 
-`%||%` <- function(x, y) {
-  if (is.null(x) || length(x) == 0L || is.na(x) || !nzchar(x)) y else x
+# Copia i parametri in un normale oggetto persistente.
+# Nei render reattivi non viene mai richiamato direttamente `params`.
+dashboard_params <- list(
+  file_fact_dashboard =
+    params$file_fact_dashboard,
+  file_dim_enti =
+    params$file_dim_enti,
+  file_dim_avvisi =
+    params$file_dim_avvisi,
+  file_metadata_indicatori =
+    params$file_metadata_indicatori,
+  file_metadata_filtri =
+    params$file_metadata_filtri,
+  run_id_indicatori =
+    params$run_id_indicatori %||% "non specificato",
+  anno_nuts =
+    params$anno_nuts %||% 2024,
+  risoluzione_nuts =
+    params$risoluzione_nuts %||% "10"
+)
+
+stop_if_missing <- function(path, label) {
+  if (
+    is.null(path) ||
+    !nzchar(path) ||
+    !file.exists(path)
+  ) {
+    stop(
+      label,
+      " non trovato: ",
+      path %||% "<NULL>"
+    )
+  }
 }
 
-stop_if_missing(params$file_indicatori_long, "File indicatori long")
-stop_if_missing(params$file_indicatori_wide, "File indicatori wide")
-stop_if_missing(params$file_metadata_indicatori, "File metadati indicatori")
+input_files <- list(
+  fact =
+    dashboard_params$file_fact_dashboard,
+  dim_enti =
+    dashboard_params$file_dim_enti,
+  dim_avvisi =
+    dashboard_params$file_dim_avvisi,
+  met_indicatori =
+    dashboard_params$file_metadata_indicatori,
+  met_filtri =
+    dashboard_params$file_metadata_filtri
+)
 
-indicatori_long <- jsonlite::fromJSON(
-  params$file_indicatori_long,
-  simplifyDataFrame = TRUE
-) |>
-  tibble::as_tibble()
+purrr::iwalk(
+  input_files,
+  ~ stop_if_missing(.x, paste0("Input ", .y))
+)
 
-indicatori_wide <- jsonlite::fromJSON(
-  params$file_indicatori_wide,
-  simplifyDataFrame = TRUE
-) |>
-  tibble::as_tibble()
+read_json_tbl <- function(path) {
+  jsonlite::fromJSON(
+    path,
+    simplifyDataFrame = TRUE
+  ) |>
+    tibble::as_tibble()
+}
 
-metadata_indicatori <- jsonlite::fromJSON(
-  params$file_metadata_indicatori,
-  simplifyDataFrame = TRUE
-) |>
-  tibble::as_tibble()
+fact_pad26 <- read_json_tbl(
+  dashboard_params$file_fact_dashboard
+)
 
-indicatori_long <- indicatori_long |>
+dim_enti <- read_json_tbl(
+  dashboard_params$file_dim_enti
+)
+
+dim_avvisi <- read_json_tbl(
+  dashboard_params$file_dim_avvisi
+)
+
+metadata_indicatori <- read_json_tbl(
+  dashboard_params$file_metadata_indicatori
+)
+
+metadata_filtri <- read_json_tbl(
+  dashboard_params$file_metadata_filtri
+)
+
+fact_pad26 <- fact_pad26 |>
   mutate(
-    pa = as.character(pa),
-    fil = as.character(fil),
-    fil_val = as.character(fil_val),
-    sub_fil = as.character(sub_fil),
-    sub_fil_val = as.character(sub_fil_val),
-    ind = as.character(ind),
-    ind_val = suppressWarnings(as.numeric(ind_val))
+    across(
+      any_of(c(
+        "candidatura_id",
+        "pa",
+        "nome_ente",
+        "misura",
+        "titolo_avviso",
+        "soggetti_destinatari",
+        "stato_avviso",
+        "stato_candidatura",
+        "codice_regione",
+        "regione",
+        "codice_provincia",
+        "provincia",
+        "codice_comune",
+        "comune",
+        "forma_giuridica",
+        "ateco",
+        "descrizione_ateco"
+      )),
+      as.character
+    ),
+    anno_inizio_bando =
+      suppressWarnings(as.integer(anno_inizio_bando)),
+    anno_finanziamento =
+      suppressWarnings(as.integer(anno_finanziamento)),
+    candidature_finanziate =
+      suppressWarnings(as.numeric(candidature_finanziate)),
+    importo_finanziato =
+      suppressWarnings(as.numeric(importo_finanziato))
   )
 
-indicatori_wide <- indicatori_wide |>
+dim_enti <- dim_enti |>
   mutate(
-    fil = as.character(fil),
-    fil_val = as.character(fil_val),
-    sub_fil = as.character(sub_fil),
-    sub_fil_val = as.character(sub_fil_val),
     across(
-      c(
-        candidature_finanziate,
-        importo_finanziato,
-        enti_finanziati,
-        enti_perimetro,
-        copertura_perc,
-        importo_medio_candidatura,
-        importo_medio_ente,
-        candidature_per_ente
-      ),
-      ~ suppressWarnings(as.numeric(.x))
-    )
+      any_of(c(
+        "pa",
+        "nome_ente",
+        "codice_regione",
+        "regione",
+        "codice_provincia",
+        "provincia",
+        "codice_comune",
+        "comune",
+        "forma_giuridica",
+        "ateco",
+        "descrizione_ateco"
+      )),
+      as.character
+    ),
+    presente_mpa =
+      suppressWarnings(as.integer(presente_mpa))
   )
 
 fmt_num <- function(x, digits = 0) {
-  format(
-    round(x, digits),
-    big.mark = ".",
-    decimal.mark = ",",
-    scientific = FALSE,
-    trim = TRUE
+  ifelse(
+    is.na(x),
+    "n.d.",
+    format(
+      round(x, digits),
+      big.mark = ".",
+      decimal.mark = ",",
+      scientific = FALSE,
+      trim = TRUE
+    )
   )
 }
 
 fmt_euro <- function(x, digits = 0) {
-  paste0("€ ", fmt_num(x, digits))
+  ifelse(
+    is.na(x),
+    "n.d.",
+    paste0("€ ", fmt_num(x, digits))
+  )
 }
 
 fmt_pct <- function(x, digits = 1) {
-  paste0(fmt_num(x, digits), "%")
+  ifelse(
+    is.na(x),
+    "n.d.",
+    paste0(fmt_num(x, digits), "%")
+  )
 }
 
 safe_divide <- function(num, den) {
-  ifelse(!is.na(den) & den > 0, num / den, NA_real_)
-}
-
-kpi_box <- function(value, label, icon = "fa-chart-bar", color = "primary") {
-  flexdashboard::valueBox(
-    value = value,
-    caption = label,
-    icon = icon,
-    color = color
+  ifelse(
+    !is.na(den) & den > 0,
+    num / den,
+    NA_real_
   )
 }
 
-# Per evitare doppi conteggi, i KPI nazionali sono calcolati usando una sola
-# lente: fil_reg. Il totale è la somma delle regioni.
-wide_reg <- indicatori_wide |>
-  filter(
-    fil == "fil_reg",
-    is.na(sub_fil) | sub_fil == ""
+source_note <- function(extra = NULL) {
+  tags$div(
+    class = "source-note",
+    tags$strong("Fonte: "),
+    "PA digitale 2026 — Dipartimento per la trasformazione digitale",
+    if (!is.null(extra)) {
+      tags$span(paste0(". ", extra))
+    }
+  )
+}
+
+choices_clean <- function(x) {
+  sort(unique(x[!is.na(x) & x != ""]))
+}
+
+filter_ui <- function(prefix, include_region = TRUE) {
+  tagList(
+    selectizeInput(
+      paste0(prefix, "_misura"),
+      "Misura / missione",
+      choices = choices_clean(fact_pad26$misura),
+      multiple = TRUE,
+      options = list(
+        placeholder = "Tutte le misure"
+      )
+    ),
+    selectizeInput(
+      paste0(prefix, "_anno_fin"),
+      "Anno di finanziamento",
+      choices = choices_clean(
+        fact_pad26$anno_finanziamento
+      ),
+      multiple = TRUE,
+      options = list(
+        placeholder = "Tutti gli anni"
+      )
+    ),
+    selectizeInput(
+      paste0(prefix, "_destinatario"),
+      "Soggetti destinatari",
+      choices = choices_clean(
+        fact_pad26$soggetti_destinatari
+      ),
+      multiple = TRUE,
+      options = list(
+        placeholder = "Tutti i destinatari"
+      )
+    ),
+    if (include_region) {
+      selectizeInput(
+        paste0(prefix, "_regione"),
+        "Regione",
+        choices = setNames(
+          choices_clean(fact_pad26$codice_regione),
+          choices_clean(fact_pad26$codice_regione)
+        ),
+        multiple = TRUE,
+        options = list(
+          placeholder = "Tutte le regioni"
+        )
+      )
+    },
+    selectizeInput(
+      paste0(prefix, "_fg"),
+      "Forma giuridica",
+      choices = choices_clean(
+        fact_pad26$forma_giuridica
+      ),
+      multiple = TRUE,
+      options = list(
+        placeholder = "Tutte le forme giuridiche"
+      )
+    ),
+    selectizeInput(
+      paste0(prefix, "_ateco"),
+      "ATECO",
+      choices = choices_clean(fact_pad26$ateco),
+      multiple = TRUE,
+      options = list(
+        placeholder = "Tutti i codici ATECO"
+      )
+    ),
+    actionButton(
+      paste0(prefix, "_reset"),
+      "Azzera filtri",
+      icon = icon("rotate-left"),
+      class = "btn btn-default"
+    )
+  )
+}
+
+apply_filter <- function(data, column, selected) {
+  if (
+    !is.null(selected) &&
+    length(selected) > 0L
+  ) {
+    data <- data |>
+      filter(.data[[column]] %in% selected)
+  }
+
+  data
+}
+
+make_fact_reactive <- function(
+    prefix,
+    include_region = TRUE
+) {
+  reactive({
+    d <- fact_pad26
+
+    d <- apply_filter(
+      d,
+      "misura",
+      input[[paste0(prefix, "_misura")]]
+    )
+
+    d <- apply_filter(
+      d,
+      "anno_finanziamento",
+      input[[paste0(prefix, "_anno_fin")]]
+    )
+
+    d <- apply_filter(
+      d,
+      "soggetti_destinatari",
+      input[[paste0(prefix, "_destinatario")]]
+    )
+
+    if (include_region) {
+      d <- apply_filter(
+        d,
+        "codice_regione",
+        input[[paste0(prefix, "_regione")]]
+      )
+    }
+
+    d <- apply_filter(
+      d,
+      "forma_giuridica",
+      input[[paste0(prefix, "_fg")]]
+    )
+
+    d <- apply_filter(
+      d,
+      "ateco",
+      input[[paste0(prefix, "_ateco")]]
+    )
+
+    d
+  })
+}
+
+make_dim_reactive <- function(
+    prefix,
+    include_region = TRUE
+) {
+  reactive({
+    d <- dim_enti |>
+      filter(presente_mpa == 1L)
+
+    if (include_region) {
+      d <- apply_filter(
+        d,
+        "codice_regione",
+        input[[paste0(prefix, "_regione")]]
+      )
+    }
+
+    d <- apply_filter(
+      d,
+      "forma_giuridica",
+      input[[paste0(prefix, "_fg")]]
+    )
+
+    d <- apply_filter(
+      d,
+      "ateco",
+      input[[paste0(prefix, "_ateco")]]
+    )
+
+    d
+  })
+}
+
+register_reset <- function(
+    prefix,
+    include_region = TRUE
+) {
+  observeEvent(
+    input[[paste0(prefix, "_reset")]],
+    {
+      updateSelectizeInput(
+        session,
+        paste0(prefix, "_misura"),
+        selected = character(0)
+      )
+
+      updateSelectizeInput(
+        session,
+        paste0(prefix, "_anno_fin"),
+        selected = character(0)
+      )
+
+      updateSelectizeInput(
+        session,
+        paste0(prefix, "_destinatario"),
+        selected = character(0)
+      )
+
+      if (include_region) {
+        updateSelectizeInput(
+          session,
+          paste0(prefix, "_regione"),
+          selected = character(0)
+        )
+      }
+
+      updateSelectizeInput(
+        session,
+        paste0(prefix, "_fg"),
+        selected = character(0)
+      )
+
+      updateSelectizeInput(
+        session,
+        paste0(prefix, "_ateco"),
+        selected = character(0)
+      )
+    }
+  )
+}
+
+overview_fact <- make_fact_reactive("ov")
+overview_dim <- make_dim_reactive("ov")
+distribution_fact <- make_fact_reactive("dist")
+spatial_fact <- make_fact_reactive(
+  "sp",
+  include_region = FALSE
+)
+spatial_dim <- make_dim_reactive(
+  "sp",
+  include_region = FALSE
+)
+benchmark_fact <- make_fact_reactive("bench")
+
+register_reset("ov")
+register_reset("dist")
+register_reset(
+  "sp",
+  include_region = FALSE
+)
+register_reset("bench")
+
+summary_kpi <- function(fact, enti) {
+  n_candidature <- sum(
+    fact$candidature_finanziate,
+    na.rm = TRUE
   )
 
-totali_nazionali <- wide_reg |>
-  summarise(
-    candidature_finanziate = sum(candidature_finanziate, na.rm = TRUE),
-    importo_finanziato = sum(importo_finanziato, na.rm = TRUE),
-    enti_finanziati = sum(enti_finanziati, na.rm = TRUE),
-    enti_perimetro = sum(enti_perimetro, na.rm = TRUE)
-  ) |>
-  mutate(
-    copertura_perc = 100 * safe_divide(enti_finanziati, enti_perimetro),
+  importo <- sum(
+    fact$importo_finanziato,
+    na.rm = TRUE
+  )
+
+  n_finanziati <- dplyr::n_distinct(
+    fact$pa[
+      !is.na(fact$pa) &
+      fact$pa != ""
+    ]
+  )
+
+  n_perimetro <- dplyr::n_distinct(
+    enti$pa[
+      !is.na(enti$pa) &
+      enti$pa != ""
+    ]
+  )
+
+  tibble(
+    enti_perimetro = n_perimetro,
+    enti_finanziati = n_finanziati,
+    copertura_perc =
+      100 * safe_divide(
+        n_finanziati,
+        n_perimetro
+      ),
+    candidature_finanziate =
+      n_candidature,
+    importo_finanziato =
+      importo,
     importo_medio_candidatura =
-      safe_divide(importo_finanziato, candidature_finanziate),
+      safe_divide(
+        importo,
+        n_candidature
+      ),
     importo_medio_ente =
-      safe_divide(importo_finanziato, enti_finanziati)
+      safe_divide(
+        importo,
+        n_finanziati
+      )
   )
+}
 
-# Avvisi
-wide_avviso <- indicatori_wide |>
-  filter(
-    fil == "fil_avviso",
-    is.na(sub_fil) | sub_fil == ""
-  ) |>
-  arrange(desc(importo_finanziato))
+overview_kpi <- reactive({
+  summary_kpi(
+    overview_fact(),
+    overview_dim()
+  )
+})
 
-# Forma giuridica
-wide_fg <- indicatori_wide |>
-  filter(
-    fil == "fil_fg",
-    is.na(sub_fil) | sub_fil == ""
+make_bar <- function(
+    data,
+    x,
+    y,
+    x_title,
+    hover_text,
+    margin_left = 250
+) {
+  plot_ly(
+    data = data,
+    x = data[[x]],
+    y = reorder(data[[y]], data[[x]]),
+    type = "bar",
+    orientation = "h",
+    hoverinfo = "text",
+    text = hover_text
   ) |>
-  arrange(desc(importo_finanziato))
+    layout(
+      xaxis = list(title = x_title),
+      yaxis = list(title = ""),
+      margin = list(l = margin_left),
+      showlegend = FALSE
+    )
+}
 
-# Enti: per evitare duplicazioni si usa una sola lente, fil_reg.
-enti_long <- indicatori_long |>
-  filter(
-    fil == "fil_reg",
-    is.na(sub_fil) | sub_fil == ""
-  ) |>
-  group_by(pa, fil_val, ind) |>
-  summarise(ind_val = sum(ind_val, na.rm = TRUE), .groups = "drop") |>
-  pivot_wider(
-    names_from = ind,
-    values_from = ind_val,
-    values_fill = 0
-  ) |>
-  transmute(
-    pa,
-    codice_regione = fil_val,
-    candidature_finanziate = ind1,
-    importo_finanziato = ind2
-  ) |>
-  mutate(
-    importo_medio_candidatura =
-      safe_divide(importo_finanziato, candidature_finanziate)
-  ) |>
-  arrange(desc(importo_finanziato))
+# --------------------------------------------------------------------------- #
+# DATI REGIONALI E GEOMETRIE
+# --------------------------------------------------------------------------- #
 
-# Dati spaziali regionali
 raccordo_nuts <- get_raccordo_regioni_nuts() |>
-  mutate(codice_regione = as.character(codice_regione))
-
-dati_regione <- wide_reg |>
-  transmute(
-    codice_regione = normalizza_codice_regione(fil_val),
-    candidature_finanziate,
-    importo_finanziato,
-    enti_finanziati,
-    enti_perimetro,
-    copertura_perc,
-    importo_medio_candidatura,
-    importo_medio_ente
-  ) |>
-  left_join(raccordo_nuts, by = "codice_regione")
+  mutate(
+    codice_regione =
+      normalizza_codice_regione(codice_regione)
+  )
 
 nuts2_it <- scarica_nuts2_italia(
-  year = params$anno_nuts,
-  resolution = params$risoluzione_nuts
+  year = dashboard_params$anno_nuts,
+  resolution =
+    dashboard_params$risoluzione_nuts
 )
 
-mappa_regionale <- nuts2_it |>
-  left_join(dati_regione, by = "NUTS_ID")
-
-palette_importo <- leaflet::colorNumeric(
-  palette = "YlOrRd",
-  domain = mappa_regionale$importo_finanziato,
-  na.color = "#eeeeee"
+# Rende stabile il nome della regione anche se il file GISCO
+# usa NAME_LATN anziché NUTS_NAME.
+nuts_name_candidates <- c(
+  "NUTS_NAME",
+  "NAME_LATN",
+  "NUTS_NAME_LATN",
+  "NAME_ENGL"
 )
 
-palette_copertura <- leaflet::colorNumeric(
-  palette = "Blues",
-  domain = mappa_regionale$copertura_perc,
-  na.color = "#eeeeee"
+nuts_name_col <- nuts_name_candidates[
+  nuts_name_candidates %in% names(nuts2_it)
+][1]
+
+if (
+  length(nuts_name_col) == 0L ||
+  is.na(nuts_name_col)
+) {
+  nuts2_it$nome_regione_mappa <-
+    nuts2_it$NUTS_ID
+} else {
+  nuts2_it$nome_regione_mappa <-
+    as.character(nuts2_it[[nuts_name_col]])
+}
+
+regional_data <- reactive({
+  fact <- spatial_fact()
+  enti <- spatial_dim()
+
+  numeratori <- fact |>
+    group_by(codice_regione) |>
+    summarise(
+      regione_fact =
+        dplyr::first(regione),
+      importo_finanziato =
+        sum(importo_finanziato, na.rm = TRUE),
+      candidature_finanziate =
+        sum(candidature_finanziate, na.rm = TRUE),
+      enti_finanziati =
+        n_distinct(
+          pa[!is.na(pa) & pa != ""]
+        ),
+      missioni_attivate =
+        n_distinct(
+          misura[
+            !is.na(misura) &
+            misura != ""
+          ]
+        ),
+      .groups = "drop"
+    )
+
+  denominatori <- enti |>
+    group_by(codice_regione) |>
+    summarise(
+      regione_dim =
+        dplyr::first(regione),
+      enti_perimetro =
+        n_distinct(
+          pa[!is.na(pa) & pa != ""]
+        ),
+      .groups = "drop"
+    )
+
+  denominatori |>
+    left_join(
+      numeratori,
+      by = "codice_regione"
+    ) |>
+    mutate(
+      regione = coalesce(
+        regione_dim,
+        regione_fact
+      ),
+      across(
+        c(
+          importo_finanziato,
+          candidature_finanziate,
+          enti_finanziati,
+          missioni_attivate
+        ),
+        ~ replace_na(.x, 0)
+      ),
+      copertura_perc =
+        100 * safe_divide(
+          enti_finanziati,
+          enti_perimetro
+        ),
+      importo_per_ente_perimetro =
+        safe_divide(
+          importo_finanziato,
+          enti_perimetro
+        ),
+      candidature_per_100_enti =
+        100 * safe_divide(
+          candidature_finanziate,
+          enti_perimetro
+        )
+    ) |>
+    left_join(
+      raccordo_nuts,
+      by = "codice_regione"
+    )
+})
+
+mappa_regionale <- reactive({
+  nuts2_it |>
+    left_join(
+      regional_data(),
+      by = "NUTS_ID"
+    ) |>
+    mutate(
+      regione_mappa = coalesce(
+        regione,
+        nome_regione_mappa,
+        NUTS_ID
+      )
+    )
+})
+
+metriche_investimenti <- c(
+  "Investimenti finanziati" =
+    "importo_finanziato",
+  "Candidature finanziate" =
+    "candidature_finanziate",
+  "Missioni attivate" =
+    "missioni_attivate",
+  "Importo per ente del perimetro" =
+    "importo_per_ente_perimetro"
 )
-```
 
-Home
-=======================================================================
-
-Column {data-width=650}
------------------------------------------------------------------------
-
-### PA monitorate
-
-```{r}
-kpi_box(
-  fmt_num(totali_nazionali$enti_perimetro),
-  "Enti nel perimetro MPA",
-  "fa-building",
-  "primary"
+metric_labels <- c(
+  importo_finanziato =
+    "Importo finanziato",
+  candidature_finanziate =
+    "Candidature finanziate",
+  missioni_attivate =
+    "Missioni attivate",
+  importo_per_ente_perimetro =
+    "Importo per ente del perimetro",
+  copertura_perc =
+    "Copertura enti (%)"
 )
-```
 
-### Enti finanziati
+metric_format <- function(metric, value) {
+  if (
+    metric %in%
+    c(
+      "importo_finanziato",
+      "importo_per_ente_perimetro"
+    )
+  ) {
+    return(fmt_euro(value))
+  }
 
-```{r}
-kpi_box(
-  fmt_num(totali_nazionali$enti_finanziati),
-  "Enti con almeno una candidatura finanziata",
-  "fa-check-circle",
-  "success"
-)
-```
+  if (metric == "copertura_perc") {
+    return(fmt_pct(value))
+  }
 
-### Copertura del perimetro
+  fmt_num(value, 1)
+}
 
-```{r}
-kpi_box(
-  fmt_pct(totali_nazionali$copertura_perc),
-  "Enti finanziati / enti nel perimetro",
-  "fa-percentage",
-  "info"
-)
-```
-
-Column {data-width=350}
------------------------------------------------------------------------
-
-### Fonte e aggiornamento
-
-```{r}
-htmltools::tagList(
-  htmltools::tags$p(
-    htmltools::tags$b("Fonte: "),
-    "PA digitale 2026 — Dipartimento per la trasformazione digitale"
-  ),
-  htmltools::tags$p(
-    htmltools::tags$b("Run indicatori: "),
-    params$run_id_indicatori %||% "non specificato"
-  ),
-  htmltools::tags$p(
-    htmltools::tags$b("Formato canonico: "),
-    "long EAV; vista wide derivata per la dashboard"
-  ),
-  htmltools::tags$p(
-    class = "text-muted",
-    "I totali nazionali sono calcolati su una sola lente territoriale ",
-    "(fil_reg), per evitare doppi conteggi tra filtri diversi."
+prepare_map_layer <- function(
+    map_data,
+    metric,
+    metric_label
+) {
+  values <- suppressWarnings(
+    as.numeric(map_data[[metric]])
   )
-)
+
+  pal <- leaflet::colorNumeric(
+    palette = "YlGnBu",
+    domain = values,
+    na.color = "#eeeeee"
+  )
+
+  map_data$map_value <- values
+  map_data$fill_color <- pal(values)
+
+  map_data$popup_html <- paste0(
+    "<b>", map_data$regione_mappa, "</b>",
+    "<br>", metric_label, ": ",
+    metric_format(metric, values),
+    "<br>Enti del perimetro: ",
+    fmt_num(map_data$enti_perimetro),
+    "<br>Enti finanziati: ",
+    fmt_num(map_data$enti_finanziati),
+    "<br>Candidature: ",
+    fmt_num(map_data$candidature_finanziate),
+    "<br>Missioni attivate: ",
+    fmt_num(map_data$missioni_attivate)
+  )
+
+  list(
+    data = map_data,
+    pal = pal
+  )
+}
+
+download_csv <- function(data_reactive, prefix) {
+  downloadHandler(
+    filename = function() {
+      paste0(
+        prefix,
+        "_",
+        Sys.Date(),
+        ".csv"
+      )
+    },
+    content = function(file) {
+      readr::write_csv(
+        data_reactive(),
+        file,
+        na = ""
+      )
+    }
+  )
+}
+
+download_xlsx <- function(data_reactive, prefix) {
+  downloadHandler(
+    filename = function() {
+      paste0(
+        prefix,
+        "_",
+        Sys.Date(),
+        ".xlsx"
+      )
+    },
+    content = function(file) {
+      openxlsx::write.xlsx(
+        data_reactive(),
+        file,
+        overwrite = TRUE
+      )
+    }
+  )
+}
 ```
+
+<style>
+.source-note {
+  font-size: 0.85em;
+  color: #666;
+  margin-top: 8px;
+  margin-bottom: 12px;
+}
+.method-note {
+  font-size: 0.9em;
+  background: #f5f5f5;
+  border-left: 4px solid #337ab7;
+  padding: 10px;
+  margin-bottom: 12px;
+}
+.download-row {
+  margin-top: 10px;
+  margin-bottom: 14px;
+}
+</style>
 
 Overview nazionale
 =======================================================================
 
-Column {data-width=333}
+Filtri {.sidebar}
 -----------------------------------------------------------------------
+
+```{r}
+filter_ui("ov")
+```
+
+<div class="method-note">
+I filtri sono combinati tra loro con logica AND. Misura, anno e destinatario
+agiscono sulle candidature; regione, forma giuridica e ATECO agiscono anche
+sul perimetro MPA usato come denominatore.
+</div>
+
+```{r}
+downloadButton(
+  "download_ov_csv",
+  "Scarica dati filtrati CSV"
+)
+
+downloadButton(
+  "download_ov_xlsx",
+  "Scarica dati filtrati XLSX"
+)
+
+output$download_ov_csv <- download_csv(
+  overview_fact,
+  "PAD26_overview_filtrata"
+)
+
+output$download_ov_xlsx <- download_xlsx(
+  overview_fact,
+  "PAD26_overview_filtrata"
+)
+```
+
+Column {data-width=250}
+-----------------------------------------------------------------------
+
+### Enti nel perimetro MPA
+
+```{r}
+valueBoxOutput("kpi_enti_perimetro")
+
+output$kpi_enti_perimetro <- renderValueBox({
+  valueBox(
+    fmt_num(
+      overview_kpi()$enti_perimetro
+    ),
+    "Enti nel perimetro MPA",
+    icon = "fa-building",
+    color = "primary"
+  )
+})
+```
+
+### Enti con almeno una candidatura
+
+```{r}
+valueBoxOutput("kpi_enti_finanziati")
+
+output$kpi_enti_finanziati <- renderValueBox({
+  valueBox(
+    fmt_num(
+      overview_kpi()$enti_finanziati
+    ),
+    "Enti con almeno una candidatura",
+    icon = "fa-check-circle",
+    color = "success"
+  )
+})
+```
+
+Column {data-width=250}
+-----------------------------------------------------------------------
+
+### Copertura del perimetro
+
+```{r}
+valueBoxOutput("kpi_copertura")
+
+output$kpi_copertura <- renderValueBox({
+  valueBox(
+    fmt_pct(
+      overview_kpi()$copertura_perc
+    ),
+    "Enti finanziati / enti MPA",
+    icon = "fa-percent",
+    color = "info"
+  )
+})
+```
 
 ### Candidature finanziate
 
 ```{r}
-kpi_box(
-  fmt_num(totali_nazionali$candidature_finanziate),
-  "Candidature finanziate",
-  "fa-file-alt",
-  "primary"
-)
+valueBoxOutput("kpi_candidature")
+
+output$kpi_candidature <- renderValueBox({
+  valueBox(
+    fmt_num(
+      overview_kpi()$candidature_finanziate
+    ),
+    "Candidature finanziate",
+    icon = "fa-file",
+    color = "primary"
+  )
+})
 ```
 
-### Importo finanziato
+Column {data-width=250}
+-----------------------------------------------------------------------
+
+### Importo complessivo
 
 ```{r}
-kpi_box(
-  fmt_euro(totali_nazionali$importo_finanziato),
-  "Importo complessivo",
-  "fa-euro-sign",
-  "success"
-)
-```
+valueBoxOutput("kpi_importo")
 
-Column {data-width=333}
------------------------------------------------------------------------
+output$kpi_importo <- renderValueBox({
+  valueBox(
+    fmt_euro(
+      overview_kpi()$importo_finanziato
+    ),
+    "Importo finanziato complessivo",
+    icon = "fa-euro-sign",
+    color = "success"
+  )
+})
+```
 
 ### Importo medio per candidatura
 
 ```{r}
-kpi_box(
-  fmt_euro(totali_nazionali$importo_medio_candidatura),
-  "Importo medio per candidatura",
-  "fa-calculator",
-  "info"
-)
+valueBoxOutput("kpi_importo_medio_cand")
+
+output$kpi_importo_medio_cand <- renderValueBox({
+  valueBox(
+    fmt_euro(
+      overview_kpi()$importo_medio_candidatura
+    ),
+    "Importo medio per candidatura",
+    icon = "fa-calculator",
+    color = "warning"
+  )
+})
 ```
+
+Column {data-width=250}
+-----------------------------------------------------------------------
 
 ### Importo medio per ente
 
 ```{r}
-kpi_box(
-  fmt_euro(totali_nazionali$importo_medio_ente),
-  "Importo medio per ente finanziato",
-  "fa-landmark",
-  "warning"
+valueBoxOutput("kpi_importo_medio_ente")
+
+output$kpi_importo_medio_ente <- renderValueBox({
+  valueBox(
+    fmt_euro(
+      overview_kpi()$importo_medio_ente
+    ),
+    "Importo medio per ente finanziato",
+    icon = "fa-landmark",
+    color = "warning"
+  )
+})
+```
+
+### Fonte e run
+
+```{r}
+uiOutput("source_run")
+
+output$source_run <- renderUI({
+  tagList(
+    source_note(),
+    tags$p(
+      tags$strong("Run indicatori: "),
+      dashboard_params$run_id_indicatori
+    )
+  )
+})
+```
+
+Misure e forme giuridiche
+=======================================================================
+
+Filtri {.sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+filter_ui("dist")
+```
+
+<div class="method-note">
+I grafici mostrano importi e candidature per misura e forma giuridica.
+</div>
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Importi per misura
+
+```{r}
+plotlyOutput(
+  "plot_importo_misura",
+  height = "430px"
+)
+
+output$plot_importo_misura <- renderPlotly({
+  d <- distribution_fact() |>
+    group_by(misura) |>
+    summarise(
+      importo =
+        sum(importo_finanziato, na.rm = TRUE),
+      candidature =
+        sum(candidature_finanziate, na.rm = TRUE),
+      .groups = "drop"
+    ) |>
+    filter(
+      !is.na(misura),
+      misura != ""
+    ) |>
+    arrange(desc(importo))
+
+  make_bar(
+    d,
+    "importo",
+    "misura",
+    "Importo finanziato",
+    paste0(
+      "<b>", d$misura, "</b>",
+      "<br>Importo: ",
+      fmt_euro(d$importo),
+      "<br>Candidature: ",
+      fmt_num(d$candidature)
+    ),
+    margin_left = 280
+  )
+})
+```
+
+### Candidature per misura
+
+```{r}
+plotlyOutput(
+  "plot_candidature_misura",
+  height = "430px"
+)
+
+output$plot_candidature_misura <-
+  renderPlotly({
+    d <- distribution_fact() |>
+      group_by(misura) |>
+      summarise(
+        candidature =
+          sum(
+            candidature_finanziate,
+            na.rm = TRUE
+          ),
+        importo =
+          sum(
+            importo_finanziato,
+            na.rm = TRUE
+          ),
+        .groups = "drop"
+      ) |>
+      filter(
+        !is.na(misura),
+        misura != ""
+      ) |>
+      arrange(desc(candidature))
+
+    make_bar(
+      d,
+      "candidature",
+      "misura",
+      "Candidature finanziate",
+      paste0(
+        "<b>", d$misura, "</b>",
+        "<br>Candidature: ",
+        fmt_num(d$candidature),
+        "<br>Importo: ",
+        fmt_euro(d$importo)
+      ),
+      margin_left = 280
+    )
+  })
+```
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Importi per forma giuridica
+
+```{r}
+plotlyOutput(
+  "plot_importo_fg",
+  height = "430px"
+)
+
+output$plot_importo_fg <- renderPlotly({
+  d <- distribution_fact() |>
+    group_by(forma_giuridica) |>
+    summarise(
+      importo =
+        sum(importo_finanziato, na.rm = TRUE),
+      candidature =
+        sum(
+          candidature_finanziate,
+          na.rm = TRUE
+        ),
+      .groups = "drop"
+    ) |>
+    filter(
+      !is.na(forma_giuridica),
+      forma_giuridica != ""
+    ) |>
+    slice_max(
+      importo,
+      n = 25,
+      with_ties = FALSE
+    ) |>
+    arrange(desc(importo))
+
+  make_bar(
+    d,
+    "importo",
+    "forma_giuridica",
+    "Importo finanziato",
+    paste0(
+      "<b>", d$forma_giuridica, "</b>",
+      "<br>Importo: ",
+      fmt_euro(d$importo),
+      "<br>Candidature: ",
+      fmt_num(d$candidature)
+    ),
+    margin_left = 320
+  )
+})
+```
+
+### Candidature per forma giuridica
+
+```{r}
+plotlyOutput(
+  "plot_candidature_fg",
+  height = "430px"
+)
+
+output$plot_candidature_fg <-
+  renderPlotly({
+    d <- distribution_fact() |>
+      group_by(forma_giuridica) |>
+      summarise(
+        candidature =
+          sum(
+            candidature_finanziate,
+            na.rm = TRUE
+          ),
+        importo =
+          sum(
+            importo_finanziato,
+            na.rm = TRUE
+          ),
+        .groups = "drop"
+      ) |>
+      filter(
+        !is.na(forma_giuridica),
+        forma_giuridica != ""
+      ) |>
+      slice_max(
+        candidature,
+        n = 25,
+        with_ties = FALSE
+      ) |>
+      arrange(desc(candidature))
+
+    make_bar(
+      d,
+      "candidature",
+      "forma_giuridica",
+      "Candidature finanziate",
+      paste0(
+        "<b>", d$forma_giuridica, "</b>",
+        "<br>Candidature: ",
+        fmt_num(d$candidature),
+        "<br>Importo: ",
+        fmt_euro(d$importo)
+      ),
+      margin_left = 320
+    )
+  })
+```
+
+Distribuzione spaziale
+=======================================================================
+
+Filtri {.sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+filter_ui(
+  "sp",
+  include_region = FALSE
+)
+
+selectInput(
+  "sp_metric_investimenti",
+  "Indicatore della prima mappa",
+  choices = metriche_investimenti,
+  selected = "importo_finanziato"
 )
 ```
 
-Column {data-width=334}
------------------------------------------------------------------------
-
-### Distribuzione per avviso
+<div class="method-note">
+La prima mappa descrive intensità e composizione dell'intervento. La seconda
+misura la copertura del perimetro MPA. Non sono ridondanti: una regione può
+avere un investimento elevato ma una copertura relativa contenuta, o viceversa.
+Misura e destinatario filtrano il numeratore; forma giuridica e ATECO filtrano
+anche il denominatore.
+</div>
 
 ```{r}
-plot_ly(
-  wide_avviso |> slice_max(importo_finanziato, n = 15),
-  x = ~importo_finanziato,
-  y = ~reorder(fil_val, importo_finanziato),
-  type = "bar",
-  orientation = "h",
-  hoverinfo = "text",
-  text = ~paste0(
-    "<b>", fil_val, "</b>",
-    "<br>Importo: ", fmt_euro(importo_finanziato),
-    "<br>Candidature: ", fmt_num(candidature_finanziate),
-    "<br>Enti: ", fmt_num(enti_finanziati)
-  )
-) |>
-  layout(
-    xaxis = list(title = "Importo finanziato"),
-    yaxis = list(title = ""),
-    margin = list(l = 260)
-  )
+downloadButton(
+  "download_sp_csv",
+  "Scarica dati regionali CSV"
+)
+
+downloadButton(
+  "download_sp_xlsx",
+  "Scarica dati regionali XLSX"
+)
+
+output$download_sp_csv <- download_csv(
+  regional_data,
+  "PAD26_distribuzione_regionale"
+)
+
+output$download_sp_xlsx <- download_xlsx(
+  regional_data,
+  "PAD26_distribuzione_regionale"
+)
 ```
 
-Avvisi e tipologie
-=======================================================================
-
-Column {data-width=600}
+Column {data-width=500}
 -----------------------------------------------------------------------
 
-### Importo finanziato per avviso
+### Investimenti e attività
 
 ```{r}
-plot_ly(
-  wide_avviso,
-  x = ~importo_finanziato,
-  y = ~reorder(fil_val, importo_finanziato),
-  type = "bar",
-  orientation = "h",
-  hoverinfo = "text",
-  text = ~paste0(
-    "<b>", fil_val, "</b>",
-    "<br>Importo: ", fmt_euro(importo_finanziato),
-    "<br>Candidature: ", fmt_num(candidature_finanziate),
-    "<br>Enti: ", fmt_num(enti_finanziati),
-    "<br>Importo medio/candidatura: ",
-    fmt_euro(importo_medio_candidatura)
-  )
-) |>
-  layout(
-    xaxis = list(title = "Importo finanziato"),
-    yaxis = list(title = ""),
-    margin = list(l = 300)
-  )
-```
+leafletOutput(
+  "map_spatial_investimenti",
+  height = "650px"
+)
 
-Column {data-width=400}
------------------------------------------------------------------------
-
-### Forma giuridica
-
-```{r}
-plot_ly(
-  wide_fg |> slice_max(importo_finanziato, n = 20),
-  x = ~importo_finanziato,
-  y = ~reorder(fil_val, importo_finanziato),
-  type = "bar",
-  orientation = "h",
-  hoverinfo = "text",
-  text = ~paste0(
-    "<b>", fil_val, "</b>",
-    "<br>Importo: ", fmt_euro(importo_finanziato),
-    "<br>Candidature: ", fmt_num(candidature_finanziate),
-    "<br>Copertura: ", fmt_pct(copertura_perc)
-  )
-) |>
-  layout(
-    xaxis = list(title = "Importo finanziato"),
-    yaxis = list(title = ""),
-    margin = list(l = 280)
-  )
-```
-
-Monitoraggio territoriale
-=======================================================================
-
-Column {data-width=650}
------------------------------------------------------------------------
-
-### Importo finanziato per regione
-
-```{r}
-leaflet(mappa_regionale) |>
-  addProviderTiles("CartoDB.Positron") |>
-  addPolygons(
-    fillColor = ~palette_importo(importo_finanziato),
-    fillOpacity = 0.78,
-    weight = 1,
-    color = "#666666",
-    popup = ~paste0(
-      "<b>", NUTS_NAME, "</b>",
-      "<br>Importo: ",
-      ifelse(is.na(importo_finanziato), "Nessun dato", fmt_euro(importo_finanziato)),
-      "<br>Candidature: ",
-      ifelse(is.na(candidature_finanziate), "Nessun dato", fmt_num(candidature_finanziate)),
-      "<br>Enti finanziati: ",
-      ifelse(is.na(enti_finanziati), "Nessun dato", fmt_num(enti_finanziati)),
-      "<br>Copertura: ",
-      ifelse(is.na(copertura_perc), "Nessun dato", fmt_pct(copertura_perc))
+output$map_spatial_investimenti <-
+  renderLeaflet({
+    metric <- input$sp_metric_investimenti
+    req(
+      metric,
+      metric %in% names(mappa_regionale())
     )
-  ) |>
-  addLegend(
-    pal = palette_importo,
-    values = ~importo_finanziato,
-    title = "Importo finanziato",
-    position = "bottomright"
-  )
+
+    prepared <- prepare_map_layer(
+      map_data = mappa_regionale(),
+      metric = metric,
+      metric_label =
+        metric_labels[[metric]]
+    )
+
+    map_data <- prepared$data
+    pal <- prepared$pal
+
+    leaflet(map_data) |>
+      addProviderTiles(
+        "CartoDB.Positron"
+      ) |>
+      addPolygons(
+        fillColor = ~fill_color,
+        fillOpacity = 0.8,
+        weight = 1,
+        color = "#666666",
+        popup = ~popup_html,
+        highlightOptions =
+          highlightOptions(
+            weight = 2,
+            color = "#333333",
+            fillOpacity = 0.9,
+            bringToFront = TRUE
+          )
+      ) |>
+      addLegend(
+        pal = pal,
+        values = ~map_value,
+        title =
+          metric_labels[[metric]],
+        position = "bottomright"
+      )
+  })
 ```
 
-Column {data-width=350}
+```{r}
+source_note(
+  "Geometrie NUTS/GISCO; raccordo territoriale tramite codici regionali."
+)
+```
+
+### Copertura enti MPA
+
+```{r}
+leafletOutput(
+  "map_spatial_copertura",
+  height = "650px"
+)
+
+output$map_spatial_copertura <-
+  renderLeaflet({
+    prepared <- prepare_map_layer(
+      map_data = mappa_regionale(),
+      metric = "copertura_perc",
+      metric_label =
+        metric_labels[["copertura_perc"]]
+    )
+
+    map_data <- prepared$data
+    pal <- prepared$pal
+
+    leaflet(map_data) |>
+      addProviderTiles(
+        "CartoDB.Positron"
+      ) |>
+      addPolygons(
+        fillColor = ~fill_color,
+        fillOpacity = 0.8,
+        weight = 1,
+        color = "#666666",
+        popup = ~popup_html,
+        highlightOptions =
+          highlightOptions(
+            weight = 2,
+            color = "#333333",
+            fillOpacity = 0.9,
+            bringToFront = TRUE
+          )
+      ) |>
+      addLegend(
+        pal = pal,
+        values = ~map_value,
+        title = "Copertura enti (%)",
+        position = "bottomright"
+      )
+  })
+```
+
+Column {data-width=500}
 -----------------------------------------------------------------------
 
-### Copertura territoriale
+### Indicatori regionali
 
 ```{r}
-leaflet(mappa_regionale) |>
-  addProviderTiles("CartoDB.Positron") |>
-  addPolygons(
-    fillColor = ~palette_copertura(copertura_perc),
-    fillOpacity = 0.78,
-    weight = 1,
-    color = "#666666",
-    popup = ~paste0(
-      "<b>", NUTS_NAME, "</b>",
-      "<br>Copertura: ",
-      ifelse(is.na(copertura_perc), "Nessun dato", fmt_pct(copertura_perc)),
-      "<br>Enti finanziati: ",
-      ifelse(is.na(enti_finanziati), "Nessun dato", fmt_num(enti_finanziati)),
-      "<br>Enti perimetro: ",
-      ifelse(is.na(enti_perimetro), "Nessun dato", fmt_num(enti_perimetro))
-    )
-  ) |>
-  addLegend(
-    pal = palette_copertura,
-    values = ~copertura_perc,
-    title = "Copertura (%)",
-    position = "bottomright"
-  )
-```
+DTOutput("table_spatial")
 
-### Tabella regionale
-
-```{r}
-DT::datatable(
-  mappa_regionale |>
-    sf::st_drop_geometry() |>
+output$table_spatial <- renderDT({
+  dati_tabella <- regional_data() |>
     transmute(
-      Regione = NUTS_NAME,
-      `Candidature finanziate` = candidature_finanziate,
-      `Importo finanziato` = importo_finanziato,
-      `Enti finanziati` = enti_finanziati,
-      `Enti perimetro` = enti_perimetro,
-      `Copertura (%)` = copertura_perc,
-      `Importo medio candidatura` = importo_medio_candidatura
+      Regione = regione,
+      `Enti perimetro` =
+        enti_perimetro,
+      `Enti finanziati` =
+        enti_finanziati,
+      `Copertura (%)` =
+        copertura_perc,
+      `Missioni attivate` =
+        missioni_attivate,
+      Candidature =
+        candidature_finanziate,
+      `Importo finanziato` =
+        importo_finanziato,
+      `Importo per ente` =
+        importo_per_ente_perimetro,
+      `Candidature per 100 enti` =
+        candidature_per_100_enti
     ) |>
-    filter(!is.na(Regione)) |>
-    arrange(desc(`Importo finanziato`)),
-  rownames = FALSE,
-  filter = "top",
-  options = list(
-    pageLength = 20,
-    scrollX = TRUE
-  )
-) |>
-  DT::formatCurrency(
-    c("Importo finanziato", "Importo medio candidatura"),
-    currency = "€",
-    interval = 3,
-    mark = ".",
-    dec.mark = ",",
-    digits = 0
+    arrange(
+      desc(`Importo finanziato`)
+    )
+
+  DT::datatable(
+    dati_tabella,
+    rownames = FALSE,
+    filter = "top",
+    options = list(
+      pageLength = 20,
+      scrollX = TRUE
+    )
   ) |>
-  DT::formatRound("Copertura (%)", digits = 1, dec.mark = ",")
+    DT::formatCurrency(
+      c(
+        "Importo finanziato",
+        "Importo per ente"
+      ),
+      currency = "€",
+      interval = 3,
+      mark = ".",
+      dec.mark = ",",
+      digits = 0
+    ) |>
+    DT::formatRound(
+      c(
+        "Copertura (%)",
+        "Candidature per 100 enti"
+      ),
+      digits = 1,
+      mark = ".",
+      dec.mark = ","
+    )
+})
 ```
 
 Benchmark enti
 =======================================================================
 
-Column {data-width=600}
+Filtri {.sidebar}
 -----------------------------------------------------------------------
 
-### Prime amministrazioni per importo finanziato
-
 ```{r}
-top_enti <- enti_long |>
-  filter(candidature_finanziate > 0) |>
-  slice_max(importo_finanziato, n = 25)
-
-plot_ly(
-  top_enti,
-  x = ~importo_finanziato,
-  y = ~reorder(pa, importo_finanziato),
-  type = "bar",
-  orientation = "h",
-  hoverinfo = "text",
-  text = ~paste0(
-    "<b>", pa, "</b>",
-    "<br>Importo: ", fmt_euro(importo_finanziato),
-    "<br>Candidature: ", fmt_num(candidature_finanziate),
-    "<br>Importo medio/candidatura: ",
-    fmt_euro(importo_medio_candidatura)
-  )
-) |>
-  layout(
-    xaxis = list(title = "Importo finanziato"),
-    yaxis = list(title = ""),
-    margin = list(l = 230)
-  )
+filter_ui("bench")
 ```
 
-Column {data-width=400}
+<div class="method-note">
+Il benchmark ordina gli enti in base all'importo finanziato, al numero di
+candidature e al numero di misure attivate.
+</div>
+
+Column
 -----------------------------------------------------------------------
 
-### Dettaglio enti
+### Benchmark degli enti
 
 ```{r}
-DT::datatable(
-  enti_long |>
-    filter(candidature_finanziate > 0) |>
-    transmute(
-      Ente = pa,
-      `Codice regione` = codice_regione,
-      `Candidature finanziate` = candidature_finanziate,
-      `Importo finanziato` = importo_finanziato,
-      `Importo medio candidatura` = importo_medio_candidatura
-    ),
-  rownames = FALSE,
-  filter = "top",
-  options = list(
-    pageLength = 20,
-    scrollX = TRUE
-  )
-) |>
-  DT::formatCurrency(
-    c("Importo finanziato", "Importo medio candidatura"),
-    currency = "€",
-    interval = 3,
-    mark = ".",
-    dec.mark = ",",
-    digits = 0
-  )
-```
+DTOutput("table_benchmark")
 
-Metodologia e metadati
-=======================================================================
+output$table_benchmark <- renderDT({
+  d <- benchmark_fact() |>
+    group_by(
+      pa,
+      nome_ente,
+      regione,
+      forma_giuridica
+    ) |>
+    summarise(
+      candidature =
+        sum(
+          candidature_finanziate,
+          na.rm = TRUE
+        ),
+      importo =
+        sum(
+          importo_finanziato,
+          na.rm = TRUE
+        ),
+      misure_attivate =
+        n_distinct(
+          misura[
+            !is.na(misura) &
+            misura != ""
+          ]
+        ),
+      .groups = "drop"
+    ) |>
+    arrange(desc(importo))
 
-Column {data-width=450}
------------------------------------------------------------------------
-
-### Contratto di lettura
-
-Il file **long EAV** resta il formato canonico condiviso:
-
-`pa | fil | fil_val | sub_fil | sub_fil_val | ind | ind_val`
-
-La dashboard utilizza la vista **wide derivata** per le aggregazioni già
-preparate. Quando legge il long, seleziona sempre una sola lente `fil` per
-evitare doppi conteggi. Le medie e le percentuali sono calcolate dopo
-l'aggregazione dei numeratori e dei denominatori.
-
-### Note sui dati territoriali
-
-La geometria non è salvata nei file degli indicatori. I codici regionali sono
-raccordati ai codici NUTS durante il rendering mediante
-`00_spatial_helpers.R`; in questo modo il file degli indicatori resta leggero
-e la componente cartografica rimane separata dalla componente analitica.
-
-Column {data-width=550}
------------------------------------------------------------------------
-
-### Metadati indicatori
-
-```{r}
-DT::datatable(
-  metadata_indicatori,
-  rownames = FALSE,
-  filter = "top",
-  options = list(
-    pageLength = 15,
-    scrollX = TRUE
-  )
-)
+  DT::datatable(
+    d,
+    rownames = FALSE,
+    filter = "top",
+    options = list(
+      pageLength = 25,
+      scrollX = TRUE
+    )
+  ) |>
+    DT::formatCurrency(
+      "importo",
+      currency = "€",
+      interval = 3,
+      mark = ".",
+      dec.mark = ",",
+      digits = 0
+    )
+})
 ```

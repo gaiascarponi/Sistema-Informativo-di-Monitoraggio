@@ -38,7 +38,8 @@ source("03_Scripts/helper_console_log.R")
   library(janitor)
   library(googledrive)
   library(openxlsx)
-  library(lubridate)}
+  library(lubridate)
+  library(jsonlite)}
 
 
 # 3) Autenticazione Drive --------------------------------------------------------
@@ -48,15 +49,15 @@ googledrive::drive_auth(scopes = "https://www.googleapis.com/auth/drive")
 # 4) Parametri del run ---------------------------------------------------------------
 
 # parametro per pulire la cartella temp alla fine del run
-  delete_local_temp <- FALSE
-  
-  RUN_ID_IMPORT <- "20260620_030101"  # da copiare dall'output dello script 01
-  RUN_ID <- format(Sys.time(), "%Y%m%d_%H%M%S")
-  
-  message("RUN_ID_IMPORT: ", RUN_ID_IMPORT)
-  message("RUN_ID raccordo: ", RUN_ID)
+delete_local_temp <- FALSE
 
-  
+RUN_ID_IMPORT <- "20260620_030101"  # da copiare dall'output dello script 01
+RUN_ID <- format(Sys.time(), "%Y%m%d_%H%M%S")
+
+message("RUN_ID_IMPORT: ", RUN_ID_IMPORT)
+message("RUN_ID raccordo: ", RUN_ID)
+
+
 #  5) Directory locali e remote -----------------------------------------------
 {
   # Input processati prodotti dallo script 01.
@@ -75,59 +76,59 @@ googledrive::drive_auth(scopes = "https://www.googleapis.com/auth/drive")
   DRIVE_PAD26_METADATA <- file.path(DRIVE_DIR_METADATA, "Source_met", "PADigitale2026", RUN_ID)
   DRIVE_PAD26_INDICATORI <- file.path(DRIVE_DIR_INDICATORS,  "PADigitale2026",  RUN_ID)
 }
-  
+
 # 6) Creazione directory locali ----------------------------------------------
- {
+{
   dir.create(DIR_PAD26_PROCESSED_INPUT_LOCAL, recursive = TRUE, showWarnings = FALSE)
-   dir.create(DIR_PAD26_PROCESSED_LOCAL, recursive = TRUE, showWarnings = FALSE)
+  dir.create(DIR_PAD26_PROCESSED_LOCAL, recursive = TRUE, showWarnings = FALSE)
   dir.create(DIR_PAD26_OUTPUT_LOCAL, recursive = TRUE, showWarnings = FALSE)
   dir.create(DIR_PAD26_LOGS_LOCAL, recursive = TRUE, showWarnings = FALSE)
   dir.create(DIR_PAD26_METADATA_LOCAL, recursive = TRUE, showWarnings = FALSE)
   dir.create(DIR_PAD26_INDICATORI_LOCAL, recursive = TRUE, showWarnings = FALSE)
- }   
-  
+}   
+
 # 7) Avvio console log --------------------------------------------------------
-  console_log <- start_console_log(
-    log_dir = DIR_PAD26_LOGS_LOCAL,
-    run_id = RUN_ID,
-    script_name = "02_raccordo_PAdigitale2026"
-  )
-  
-  message("Console log locale: ", console_log$path)
-  message("Cartella log Drive: ", DRIVE_PAD26_LOGS)
-  
-  
+console_log <- start_console_log(
+  log_dir = DIR_PAD26_LOGS_LOCAL,
+  run_id = RUN_ID,
+  script_name = "02_raccordo_PAdigitale2026"
+)
+
+message("Console log locale: ", console_log$path)
+message("Cartella log Drive: ", DRIVE_PAD26_LOGS)
+
+
 # 8) Download input -----------------------------------------------------------
 
-  file_candidature <- file.path(
-    DIR_PAD26_PROCESSED_INPUT_LOCAL,
-    "candidature_finanziate_padigitale2026.rds"
-  )
-  
-  file_avvisi <- file.path(
-    DIR_PAD26_PROCESSED_INPUT_LOCAL,
-    "avvisi_padigitale2026.csv"
-  )
-  
-  drive_download_from_path(
-    drive_file_rel = file.path(DRIVE_PAD26_PROCESSED_INPUT, "candidature_finanziate_padigitale2026.rds"),
-    local_path = file_candidature
-  )
-  
-  drive_download_from_path(
-    drive_file_rel = file.path(DRIVE_PAD26_PROCESSED_INPUT, "avvisi_padigitale2026.csv"),
-    local_path = file_avvisi
-  )
-  
-  
-  if (!file.exists(file_candidature)) {
-    stop("File candidature PA digitale 2026 non trovato: ", file_candidature)
-  }
-  
-  if (!file.exists(file_avvisi)) {
-    stop("File avvisi PA digitale 2026 non trovato: ", file_avvisi)
-  }
-  
+file_candidature <- file.path(
+  DIR_PAD26_PROCESSED_INPUT_LOCAL,
+  "candidature_finanziate_padigitale2026.rds"
+)
+
+file_avvisi <- file.path(
+  DIR_PAD26_PROCESSED_INPUT_LOCAL,
+  "avvisi_padigitale2026.csv"
+)
+
+drive_download_from_path(
+  drive_file_rel = file.path(DRIVE_PAD26_PROCESSED_INPUT, "candidature_finanziate_padigitale2026.rds"),
+  local_path = file_candidature
+)
+
+drive_download_from_path(
+  drive_file_rel = file.path(DRIVE_PAD26_PROCESSED_INPUT, "avvisi_padigitale2026.csv"),
+  local_path = file_avvisi
+)
+
+
+if (!file.exists(file_candidature)) {
+  stop("File candidature PA digitale 2026 non trovato: ", file_candidature)
+}
+
+if (!file.exists(file_avvisi)) {
+  stop("File avvisi PA digitale 2026 non trovato: ", file_avvisi)
+}
+
 
 # 10) FUNZIONI ---------------------------------------------------------------
 
@@ -157,6 +158,20 @@ normalizza_codice_regione <- function(x) {
     stringr::str_pad(width = 2, pad = "0")
 }
 
+
+normalizza_chiave_avviso <- function(x) {
+  x %>%
+    as.character() %>%
+    stringr::str_to_upper() %>%
+    stringr::str_replace_all("[–—−]", "-") %>%
+    stringr::str_replace_all("’|`", "'") %>%
+    stringr::str_replace_all("\\s*/\\s*", "/") %>%
+    stringr::str_replace_all("\\s*-\\s*", " - ") %>%
+    stringr::str_squish() %>%
+    dplyr::na_if("")
+}
+
+
 # 11) IMPORT DATI PA DIGITALE 2026 -------------------------------------------
 
 candidature_pad26 <- readRDS(file_candidature) %>%
@@ -175,23 +190,155 @@ print(names(avvisi))
 # summary(as.factor(candidature_pad26$dataset_id))
 
 
+# 11.1) INTEGRAZIONE CANDIDATURE-AVVISI E CONTROLLI ---------------------------
+
+# Chiavi normalizzate.
+candidature_check <- candidature_pad26 %>%
+  dplyr::mutate(
+    avviso = as.character(avviso),
+    avviso_key = normalizza_chiave_avviso(avviso)
+  )
+
+avvisi_check <- avvisi %>%
+  dplyr::mutate(
+    titolo = as.character(titolo),
+    avviso_key = normalizza_chiave_avviso(titolo)
+  )
+
+# Il file avvisi deve avere una sola riga per chiave normalizzata.
+duplicati_avvisi <- avvisi_check %>%
+  dplyr::count(avviso_key, sort = TRUE, name = "n") %>%
+  dplyr::filter(!is.na(avviso_key), n > 1L)
+
+if (nrow(duplicati_avvisi) > 0L) {
+  stop(
+    "Il dataset avvisi contiene chiavi duplicate. Verificare il foglio ",
+    "'duplicati_avvisi' nel workbook dei controlli."
+  )
+}
+
+# Controllo preliminare prima del raccordo manuale.
+check_match_avvisi_pre <- candidature_check %>%
+  dplyr::distinct(avviso, avviso_key) %>%
+  dplyr::left_join(
+    avvisi_check %>%
+      dplyr::distinct(
+        avviso_key,
+        titolo,
+        misura,
+        data_inizio_bando,
+        data_fine_bando,
+        stato,
+        totale_importo_stanziato,
+        totale_importo_misura,
+        soggetti_destinatari
+      ),
+    by = "avviso_key",
+    relationship = "many-to-one"
+  ) %>%
+  dplyr::mutate(
+    match_avviso = !is.na(titolo)
+  )
+
+sintesi_match_avvisi_pre <- check_match_avvisi_pre %>%
+  dplyr::count(match_avviso, name = "n_titoli")
+
+non_match_avvisi_pre <- check_match_avvisi_pre %>%
+  dplyr::filter(!match_avviso) %>%
+  dplyr::select(avviso, avviso_key)
+
+# Raccordi espliciti e documentati:
+# nelle candidature la quota è inclusa nel titolo, mentre nel dataset avvisi
+# il titolo è disponibile soltanto al livello generale.
+raccordo_avvisi_manual <- tibble::tribble(
+  ~avviso_candidatura,
+  ~titolo_avviso_ufficiale,
+  ~motivo_raccordo,
+  
+  "1.1 Infrastrutture digitali - ASL/AO - giugno 2025 (quota 1.1)",
+  "1.1 Infrastrutture digitali - ASL/AO - giugno 2025",
+  "La candidatura distingue la quota 1.1; il dataset avvisi riporta il titolo generale.",
+  
+  "1.1 Infrastrutture digitali - ASL/AO - giugno 2025 (quota 1.2)",
+  "1.1 Infrastrutture digitali - ASL/AO - giugno 2025",
+  "La candidatura distingue la quota 1.2; il dataset avvisi riporta il titolo generale.",
+  
+  "1.1 Infrastrutture digitali - ASL/AO - ottobre 2025 (quota 1.1)",
+  "1.1 Infrastrutture digitali - ASL/AO - ottobre 2025",
+  "La candidatura distingue la quota 1.1; il dataset avvisi riporta il titolo generale.",
+  
+  "1.1 Infrastrutture digitali - ASL/AO - ottobre 2025 (quota 1.2)",
+  "1.1 Infrastrutture digitali - ASL/AO - ottobre 2025",
+  "La candidatura distingue la quota 1.2; il dataset avvisi riporta il titolo generale."
+) %>%
+  dplyr::mutate(
+    avviso_key_candidatura =
+      normalizza_chiave_avviso(avviso_candidatura),
+    avviso_key_ufficiale =
+      normalizza_chiave_avviso(titolo_avviso_ufficiale)
+  )
+
+# Applica il raccordo manuale soltanto alle quattro chiavi note.
+candidature_check <- candidature_check %>%
+  dplyr::left_join(
+    raccordo_avvisi_manual %>%
+      dplyr::select(
+        avviso_key_candidatura,
+        avviso_key_ufficiale,
+        motivo_raccordo
+      ),
+    by = c("avviso_key" = "avviso_key_candidatura"),
+    relationship = "many-to-one"
+  ) %>%
+  dplyr::mutate(
+    avviso_key_join = dplyr::coalesce(
+      avviso_key_ufficiale,
+      avviso_key
+    ),
+    raccordo_avviso_manuale = !is.na(avviso_key_ufficiale)
+  )
+
+
 # 12) STANDARDIZZAZIONE PA DIGITALE 2026 -------------------------------------
 
-pad26_std <- candidature_pad26 %>%
-  mutate(
+avvisi_std <- avvisi_check %>%
+  dplyr::mutate(
+    data_inizio_bando = as.Date(data_inizio_bando),
+    data_fine_bando = as.Date(data_fine_bando),
+    totale_importo_stanziato =
+      readr::parse_number(as.character(totale_importo_stanziato)),
+    totale_importo_misura =
+      readr::parse_number(as.character(totale_importo_misura))
+  ) %>%
+  dplyr::transmute(
+    avviso_key,
+    titolo_avviso = titolo,
+    misura = as.character(misura),
+    data_inizio_bando,
+    data_fine_bando,
+    anno_inizio_bando = as.integer(format(data_inizio_bando, "%Y")),
+    anno_fine_bando = as.integer(format(data_fine_bando, "%Y")),
+    stato_avviso = as.character(stato),
+    totale_importo_stanziato,
+    totale_importo_misura,
+    soggetti_destinatari = as.character(soggetti_destinatari)
+  ) %>%
+  dplyr::distinct(avviso_key, .keep_all = TRUE)
+
+stopifnot(!anyDuplicated(avvisi_std$avviso_key))
+
+# Dataset candidature arricchito con le informazioni ufficiali degli avvisi.
+pad26_std <- candidature_check %>%
+  dplyr::mutate(
     ente_key = normalizza_testo(ente),
     codice_ipa_key = normalizza_testo(codice_ipa),
     
-    # Nei file PA digitale il codice fiscale potrebbe non esserci sempre.
-    # Manteniamo una colonna standard se esiste.
-    # codice_fiscale_ente = if ("codice_fiscale" %in% names(.)) {
-    #   normalizza_codice_fiscale(codice_fiscale)
-    # } else {
-    #   NA_character_
-    # },
-    
     cod_regione = normalizza_codice_regione(cod_regione),
-    cod_provincia = stringr::str_pad(as.character(cod_provincia), 3, pad = "0"),
+    cod_provincia = stringr::str_pad(
+      as.character(cod_provincia),
+      3,
+      pad = "0"
+    ),
     cod_comune = as.character(cod_comune),
     
     regione_key = normalizza_testo(regione),
@@ -200,12 +347,73 @@ pad26_std <- candidature_pad26 %>%
     tipologia_ente_key = normalizza_testo(tipologia_ente),
     stato_candidatura_key = normalizza_testo(stato_candidatura),
     
-    avviso = as.character(avviso),
-    importo_finanziamento = readr::parse_number(as.character(importo_finanziamento))
+    importo_finanziamento =
+      readr::parse_number(as.character(importo_finanziamento))
+  ) %>%
+  dplyr::left_join(
+    avvisi_std,
+    by = c("avviso_key_join" = "avviso_key"),
+    relationship = "many-to-one"
+  ) %>%
+  dplyr::mutate(
+    match_avviso = !is.na(titolo_avviso),
+    titolo_avviso = dplyr::coalesce(titolo_avviso, avviso),
+    motivo_non_match_avviso = dplyr::case_when(
+      match_avviso ~ NA_character_,
+      TRUE ~ "Titolo candidatura non presente nel dataset avvisi"
+    )
   )
 
-# str(pad26_std)
-# summary(as.factor(pad26_std$avviso))
+stopifnot(nrow(pad26_std) == nrow(candidature_pad26))
+
+# Controlli successivi al raccordo.
+check_join_avvisi <- pad26_std %>%
+  dplyr::summarise(
+    n_candidature = dplyr::n(),
+    n_match_avviso = sum(match_avviso, na.rm = TRUE),
+    n_senza_match_avviso = sum(!match_avviso, na.rm = TRUE),
+    quota_match_avviso = n_match_avviso / n_candidature,
+    n_raccordi_manuali =
+      sum(raccordo_avviso_manuale, na.rm = TRUE)
+  )
+
+check_match_avvisi_post <- pad26_std %>%
+  dplyr::distinct(
+    avviso,
+    avviso_key,
+    avviso_key_join,
+    raccordo_avviso_manuale,
+    motivo_raccordo,
+    titolo_avviso,
+    misura,
+    match_avviso
+  ) %>%
+  dplyr::arrange(match_avviso, avviso)
+
+non_match_avvisi_post <- check_match_avvisi_post %>%
+  dplyr::filter(!match_avviso)
+
+if (nrow(non_match_avvisi_post) > 0L) {
+  warning(
+    "Restano ",
+    nrow(non_match_avvisi_post),
+    " titoli candidatura senza raccordo al dataset avvisi."
+  )
+}
+
+message(
+  "Raccordo candidature-avvisi: ",
+  check_join_avvisi$n_match_avviso,
+  "/",
+  check_join_avvisi$n_candidature,
+  " candidature abbinate; raccordi manuali: ",
+  check_join_avvisi$n_raccordi_manuali
+)
+
+# Dimensione ufficiale degli avvisi. Gli importi stanziati restano qui,
+# perché non devono essere sommati sulle righe-candidatura.
+dim_avvisi_padigitale2026 <- avvisi_std %>%
+  dplyr::arrange(misura, data_inizio_bando, titolo_avviso)
 
 # 13) IMPORT MASTER LIST DA DRIVE --------------------------------------------
 
@@ -2103,11 +2311,20 @@ log_match_pad26 <- log_copertura_pad26_per_dataset %>%
 
 
 #==============================================================================#
-#### 16) SALVATAGGIO OUTPUT RACCORDATI                                     ----
+#### 16) OUTPUT PROCESSED, CONTROLLI E METADATI                         ----
 #==============================================================================#
+
+# Il file canonico del raccordo è lista_pad26_long:
+# - una riga per ente-candidatura;
+# - tutti gli enti della lista sono mantenuti;
+# - le informazioni ufficiali degli avvisi sono prefissate pad26_.
+#
+# lista_pad26_master e dim_avvisi_padigitale2026 sono dimensioni di supporto.
+
 oggetti_output_attesi <- c(
   "lista_pad26_long",
   "lista_pad26_master",
+  "dim_avvisi_padigitale2026",
   "log_pad26_non_match_full",
   "log_lista_non_in_pad26_full"
 )
@@ -2128,321 +2345,128 @@ if (length(oggetti_output_mancanti) > 0L) {
   )
 }
 
-message("Tutti gli oggetti output sono disponibili. Avvio salvataggio.")
-
-
-local_lista_pad26_long_rds <- file.path(
-  DIR_PAD26_PROCESSED_LOCAL,
-  "lista_pad26_long.rds"
-)
-
-local_lista_pad26_long_json <- file.path(
-  DIR_PAD26_PROCESSED_LOCAL,
-  "lista_pad26_long.json"
-)
-
-local_lista_pad26_master_rds <- file.path(
-  DIR_PAD26_PROCESSED_LOCAL,
-  "lista_pad26_master.rds"
-)
-
-local_lista_pad26_master_json <- file.path(
-  DIR_PAD26_PROCESSED_LOCAL,
-  "lista_pad26_master.json"
-)  
+salva_processed <- function(
+    obj,
+    base_filename,
+    formati = c("rds", "json")
+) {
+  paths <- character()
   
-local_pad26_non_match_rds <- file.path(
-  DIR_PAD26_PROCESSED_LOCAL,
-  "pad26_non_match_lista.rds"
-)
-
-local_lista_non_pad26_rds <- file.path(
-  DIR_PAD26_PROCESSED_LOCAL,
-  "lista_non_in_pad26.rds"
-)
-
-
-saveRDS(
-  lista_pad26_long,
-  local_lista_pad26_long_rds
-)
-
-jsonlite::write_json(
-  x = lista_pad26_long,
-  path = local_lista_pad26_long_json,
-  dataframe = "rows",
-  na = "null",
-  null = "null",
-  pretty = FALSE,
-  auto_unbox = TRUE,
-  digits = NA,
-  Date = "ISO8601",
-  POSIXt = "ISO8601"
-)
-
-saveRDS(
-  lista_pad26_master,
-  local_lista_pad26_master_rds
-)
-
-jsonlite::write_json(
-  x = lista_pad26_master,
-  path = local_lista_pad26_master_json,
-  dataframe = "rows",
-  na = "null",
-  null = "null",
-  pretty = FALSE,
-  auto_unbox = TRUE,
-  digits = NA,
-  Date = "ISO8601",
-  POSIXt = "ISO8601"
-)
-
-saveRDS(
-  log_pad26_non_match_full,
-  local_pad26_non_match_rds
-)
-
-saveRDS(
-  log_lista_non_in_pad26_full,
-  local_lista_non_pad26_rds
-)
-
-output_raccordo_paths <- c(
-  local_lista_pad26_long_rds,
-  local_lista_pad26_long_json,
-  local_lista_pad26_master_rds,
-  local_lista_pad26_master_json,
-  local_pad26_non_match_rds,
-  local_lista_non_pad26_rds
-)
-
-if (!all(file.exists(output_raccordo_paths))) {
-  stop(
-    "Uno o più output del raccordo non sono stati salvati: ",
-    paste(
-      output_raccordo_paths[!file.exists(output_raccordo_paths)],
-      collapse = ", "
+  if ("rds" %in% formati) {
+    p <- file.path(
+      DIR_PAD26_PROCESSED_LOCAL,
+      paste0(base_filename, ".rds")
+    )
+    saveRDS(obj, p)
+    paths <- c(paths, p)
+  }
+  
+  if ("json" %in% formati) {
+    p <- file.path(
+      DIR_PAD26_PROCESSED_LOCAL,
+      paste0(base_filename, ".json")
+    )
+    jsonlite::write_json(
+      x = obj,
+      path = p,
+      dataframe = "rows",
+      na = "null",
+      null = "null",
+      pretty = FALSE,
+      auto_unbox = TRUE,
+      digits = NA,
+      Date = "ISO8601",
+      POSIXt = "ISO8601"
+    )
+    paths <- c(paths, p)
+  }
+  
+  if ("csv" %in% formati) {
+    p <- file.path(
+      DIR_PAD26_PROCESSED_LOCAL,
+      paste0(base_filename, ".csv")
+    )
+    readr::write_csv(obj, p, na = "")
+    paths <- c(paths, p)
+  }
+  
+  if (!all(file.exists(paths))) {
+    stop(
+      "Errore nel salvataggio di ",
+      base_filename,
+      ": ",
+      paste(paths[!file.exists(paths)], collapse = ", ")
+    )
+  }
+  
+  purrr::walk(
+    paths,
+    ~ drive_upload_or_update(
+      local_path = .x,
+      drive_folder_rel = DRIVE_PAD26_PROCESSED
     )
   )
+  
+  message("Salvato processed: ", base_filename)
+  invisible(paths)
 }
 
-message(
-  "Output raccordo salvati localmente in: ",
-  DIR_PAD26_PROCESSED_LOCAL
+# Dataset canonico e dimensioni di supporto.
+paths_lista_long <- salva_processed(
+  lista_pad26_long,
+  "lista_pad26_long",
+  formati = c("rds", "json")
 )
 
-
-purrr::walk(
-  output_raccordo_paths,
-  ~ drive_upload_or_update(
-    local_path = .x,
-    drive_folder_rel = DRIVE_PAD26_PROCESSED
-  )
+paths_lista_master <- salva_processed(
+  lista_pad26_master,
+  "lista_pad26_master",
+  formati = c("rds", "json")
 )
 
-message(
-  "Output raccordo caricati su Drive in: ",
-  DRIVE_PAD26_PROCESSED
+paths_dim_avvisi <- salva_processed(
+  dim_avvisi_padigitale2026,
+  "dim_avvisi_padigitale2026",
+  formati = c("rds", "json", "csv")
 )
 
-local_pad26_non_match_xlsx <- file.path(
-  DIR_PAD26_PROCESSED_LOCAL,
-  "pad26_non_match_Lista_raccordo_SIM.xlsx"
-)
-
-local_lista_non_pad26_xlsx <- file.path(
-  DIR_PAD26_PROCESSED_LOCAL,
-  "lista_non_in_pad26.xlsx"
-)
-
-openxlsx::write.xlsx(
+# File diagnostici di dettaglio, mantenuti nella stessa cartella processed.
+paths_pad26_non_match <- salva_processed(
   log_pad26_non_match_full,
-  file = local_pad26_non_match_xlsx,
-  overwrite = TRUE,
-  asTable = FALSE
+  "pad26_non_match_lista",
+  formati = c("rds")
 )
 
-openxlsx::write.xlsx(
+paths_lista_non_pad26 <- salva_processed(
   log_lista_non_in_pad26_full,
-  file = local_lista_non_pad26_xlsx,
-  overwrite = TRUE,
-  asTable = FALSE
-)
-
-drive_upload_or_update(
-  local_path = local_pad26_non_match_xlsx,
-  drive_folder_rel = DRIVE_PAD26_PROCESSED
-)
-
-drive_upload_or_update(
-  local_path = local_lista_non_pad26_xlsx,
-  drive_folder_rel = DRIVE_PAD26_PROCESSED
+  "lista_non_in_pad26",
+  formati = c("rds")
 )
 
 
 #==============================================================================#
-####                9.X SALVATAGGIO LOG IN UNICO EXCEL                    ----
+#### 16.1 WORKBOOK UNICO DEI CONTROLLI                                    ----
 #==============================================================================#
-log_list <- list(
-  "01_tipo_match" =
-    log_tipo_match,
-  
-  "02_check_match_cf" =
-    check_match_codice_fiscale,
-  
-  "03_partecip_lista" =
-    log_partecipazione_lista_pad26,
-  
-  "04_copertura_tot" =
-    log_copertura_pad26_lista,
-  
-  "05_copertura_dataset" =
-    log_copertura_pad26_per_dataset,
-  
-  "06_nonmatch_aggregato" =
-    log_non_match_per_dataset,
-  
-  "07_pad26_nonmatch_full" =
-    log_pad26_non_match_full,
-  
-  "08_nonmatch_categoria" =
-    log_pad26_non_match_per_categoria,
-  
-  "09_lista_senza_ipa" =
-    log_lista_senza_codice_ipa,
-  
-  "10_lista_non_pad26" =
-    log_lista_non_in_pad26_full,
-  
-  "11_copertura_desc_fg" =
-    log_copertura_lista_per_desc_fg,
-  
-  "12_ipa_pad26_non_lista" =
-    log_ipa_pad26_non_in_lista,
-  
-  "13_denom_diff_ipa" =
-    log_ipa_match_denom_differenti,
-  
-  "14_incoer_territ_ipa" =
-    log_ipa_incoerenze_territoriali,
-  
-  "15_candidati_comuni" =
-    candidati_match_comuni,
-  
-  "16_enti_nonmatch_det" =
-    log_enti_pad26_non_match_dettaglio
-)
 
-# log_list <- list(
-# #   "01_check_pad26_ipa" = #eliminare, è gia in 6
-# #     check_pad26_ipa,
-# #   
-# #   "02_check_lista_ipa" = #eliminare, è gia in 5 
-# #     check_lista_ipa,
-# #   
-# #   "03_pad26_in_lista" = #eliminare, è gia in 6
-# #     check_pad26_in_lista,
-# #   
-# #   "04_lista_in_pad26" = #eliminare, è gia in 5
-# #     check_lista_in_pad26,
-#   
-#   "05_partecip_lista" =
-#     log_partecipazione_lista_pad26,
-#   
-#   "06_copertura_tot" =
-#     log_copertura_pad26_lista,
-#   
-#   "07_copertura_dataset" =
-#     log_copertura_pad26_per_dataset,
-#   
-#   "08_non_match_dataset" =
-#     log_non_match_per_dataset,
-#   
-#   "09_lista_senza_ipa" =
-#     log_lista_senza_codice_ipa,
-#   
-#   "10_lista_non_pad26" =
-#     log_lista_non_in_pad26_full,
-#   
-#   "11_ipa_ambigui" =
-#     ipa_ambigui_lista,
-#   
-#   "12_chiavi_ambigue" =
-#     chiavi_ambigue_lista_den,
-#   
-#   "13_ipa_pad26_non_lista" =
-#     log_ipa_pad26_non_in_lista,
-#   
-#   # "14_ipa_lista_non_pad26" =
-#   #   log_ipa_lista_non_in_pad26,
-#   
-#   "14_copertura_desc_fg" =
-#     log_copertura_lista_per_desc_fg,
-#   
-#   "15_denom_diff_ipa" =
-#     log_ipa_match_denom_differenti,
-#   
-#   "16_incoer_territ_ipa" =
-#     log_ipa_incoerenze_territoriali,
-#   
-#   "17_copertura_desc_fg" =
-#     log_copertura_lista_per_desc_fg,
-#   
-#   "18_enti_non_match" =
-#     log_enti_pad26_non_match_dettaglio,
-#   
-#   "19_candidati_comuni" =
-#     candidati_match_comuni,
-#   
-#   "20_sintesi_match" =
-#     log_match_pad26,
-#   
-#   "21_dett_partecip" =
-#     lista_partecipazione_pad26
-# )
-
-oggetti_log_mancanti <- names(log_list)[
-  vapply(log_list, is.null, logical(1))
-]
-
-if (length(oggetti_log_mancanti) > 0L) {
-  stop(
-    "Oggetti log NULL: ",
-    paste(oggetti_log_mancanti, collapse = ", ")
+# Controlli specifici sul raccordo avvisi.
+sintesi_raccordo_avvisi <- check_join_avvisi %>%
+  dplyr::mutate(
+    quota_match_avviso_pct =
+      round(100 * quota_match_avviso, 2)
   )
-}
 
-
-local_log_excel <- file.path(
-  DIR_PAD26_METADATA_LOCAL,
-  "controlli_raccordo_padigitale2026_Lista_raccordo_SIM.xlsx"
-)
-
-openxlsx::write.xlsx(
-  x = log_list,
-  file = local_log_excel,
-  overwrite = TRUE
-)
-
-
-drive_upload_or_update(
-  local_path = local_log_excel,
-  drive_folder_rel = DRIVE_PAD26_METADATA
-)
-
-
-
+# Controlli residuali sul codice fiscale.
 check_cf_residui <- log_pad26_non_match_full %>%
   dplyr::filter(
     !is.na(pad26_codice_fiscale_ipa_key),
     pad26_codice_fiscale_ipa_key != ""
   ) %>%
   dplyr::mutate(
-    cf_presente_in_lista = pad26_codice_fiscale_ipa_key %in%
+    cf_presente_in_lista =
+      pad26_codice_fiscale_ipa_key %in%
       lista_base$codice_fiscale_key,
-    
-    cf_ambiguo_in_lista = pad26_codice_fiscale_ipa_key %in%
+    cf_ambiguo_in_lista =
+      pad26_codice_fiscale_ipa_key %in%
       cf_ambigui_lista$codice_fiscale_key
   ) %>%
   dplyr::count(
@@ -2450,7 +2474,6 @@ check_cf_residui <- log_pad26_non_match_full %>%
     cf_ambiguo_in_lista,
     name = "n_candidature"
   )
-# 
 
 residui_cf_matchabili <- log_pad26_non_match_full %>%
   dplyr::filter(
@@ -2470,361 +2493,393 @@ residui_cf_matchabili <- log_pad26_non_match_full %>%
     )
   )
 
-nrow(residui_cf_matchabili)
+log_list <- list(
+  "01_avvisi_sintesi" =
+    sintesi_raccordo_avvisi,
+  
+  "02_avvisi_match_pre" =
+    sintesi_match_avvisi_pre,
+  
+  "03_avvisi_nonmatch_pre" =
+    non_match_avvisi_pre,
+  
+  "04_avvisi_match_post" =
+    check_match_avvisi_post,
+  
+  "05_avvisi_nonmatch_post" =
+    non_match_avvisi_post,
+  
+  "06_avvisi_racc_manual" =
+    raccordo_avvisi_manual,
+  
+  "07_avvisi_duplicati" =
+    duplicati_avvisi,
+  
+  "08_tipo_match_lista" =
+    log_tipo_match,
+  
+  "09_check_match_cf" =
+    check_match_codice_fiscale,
+  
+  "10_cf_residui" =
+    check_cf_residui,
+  
+  "11_cf_residui_match" =
+    residui_cf_matchabili,
+  
+  "12_partecip_lista" =
+    log_partecipazione_lista_pad26,
+  
+  "13_copertura_tot" =
+    log_copertura_pad26_lista,
+  
+  "14_copertura_dataset" =
+    log_copertura_pad26_per_dataset,
+  
+  "15_nonmatch_aggregato" =
+    log_non_match_per_dataset,
+  
+  "16_pad26_nonmatch_full" =
+    log_pad26_non_match_full,
+  
+  "17_nonmatch_categoria" =
+    log_pad26_non_match_per_categoria,
+  
+  "18_lista_senza_ipa" =
+    log_lista_senza_codice_ipa,
+  
+  "19_lista_non_pad26" =
+    log_lista_non_in_pad26_full,
+  
+  "20_copertura_desc_fg" =
+    log_copertura_lista_per_desc_fg,
+  
+  "21_ipa_pad26_non_lista" =
+    log_ipa_pad26_non_in_lista,
+  
+  "22_denom_diff_ipa" =
+    log_ipa_match_denom_differenti,
+  
+  "23_incoer_territ_ipa" =
+    log_ipa_incoerenze_territoriali,
+  
+  "24_candidati_comuni" =
+    candidati_match_comuni,
+  
+  "25_enti_nonmatch_det" =
+    log_enti_pad26_non_match_dettaglio
+)
 
-# # 10) INDICATORI -------------------------------------------------------------
-# 
-# ## 10.1 Indicatori per ente ####
-# indicatori_pad26_ente <- pad26_raccordato %>%
-#   group_by(
-#     ente_key,
-#     codice_ipa_key,
-#     ente,
-#     tipologia_ente,
-#     comune,
-#     provincia,
-#     regione,
-#     cod_comune,
-#     cod_provincia,
-#     cod_regione,
-#     match_lista,
-#     tipo_match,
-#     
-#     codice_fiscale,
-#     codice_ente_ipa,
-#     ragione_sociale,
-#     forma_giuridica,
-#     descr_forma_giuridica,
-#     codice_unita_s13,
-#     codice_unita_mpa,
-#     presente_mpa,
-#     presente_s13,
-#     presente_bdap,
-#     ateco_bdap,
-#     descr_ateco_bdap
-#   ) %>%
-#   summarise(
-#     n_candidature = n(),
-#     n_misure = n_distinct(avviso, na.rm = TRUE),
-#     importo_finanziato = sum(importo_finanziamento, na.rm = TRUE),
-#     n_cup = n_distinct(codice_cup, na.rm = TRUE),
-#     n_candidature_completate = sum(str_detect(stato_candidatura_key, "COMPLET"), na.rm = TRUE),
-#     .groups = "drop"
-#   ) %>%
-#   mutate(
-#     importo_medio_candidatura = if_else(
-#       n_candidature > 0,
-#       importo_finanziato / n_candidature,
-#       NA_real_
-#     )
-#   )
-# 
-# local_indicatori_ente_csv <- file.path(
-#   DIR_PAD26_INDICATORI_LOCAL,
-#   "indicatori_padigitale2026_ente.csv"
-# )
-# 
-# local_indicatori_ente_rds <- file.path(
-#   DIR_PAD26_INDICATORI_LOCAL,
-#   "indicatori_padigitale2026_ente.rds"
-# )
-# 
-# write_csv(indicatori_pad26_ente, local_indicatori_ente_csv)
-# saveRDS(indicatori_pad26_ente, local_indicatori_ente_rds)
-# 
-# drive_upload_or_update(local_indicatori_ente_csv, DRIVE_PAD26_INDICATORI)
-# drive_upload_or_update(local_indicatori_ente_rds, DRIVE_PAD26_INDICATORI)
-# 
-# 
-# ## 10.2 Indicatori per misura / avviso ####
-# indicatori_pad26_misura <- pad26_raccordato %>%
-#   group_by(
-#     avviso,
-#     tipo_file_candidatura,
-#     forma_giuridica,
-#     descr_forma_giuridica,
-#     regione,
-#     cod_regione,
-#     match_lista
-#   ) %>%
-#   summarise(
-#     n_candidature = n(),
-#     n_enti = n_distinct(ente_key, na.rm = TRUE),
-#     importo_finanziato = sum(importo_finanziamento, na.rm = TRUE),
-#     n_cup = n_distinct(codice_cup, na.rm = TRUE),
-#     .groups = "drop"
-#   )
-# 
-# local_indicatori_misura_csv <- file.path(
-#   DIR_PAD26_INDICATORI_LOCAL,
-#   "indicatori_padigitale2026_misura.csv"
-# )
-# 
-# local_indicatori_misura_rds <- file.path(
-#   DIR_PAD26_INDICATORI_LOCAL,
-#   "indicatori_padigitale2026_misura.rds"
-# )
-# 
-# write_csv(indicatori_pad26_misura, local_indicatori_misura_csv)
-# saveRDS(indicatori_pad26_misura, local_indicatori_misura_rds)
-# 
-# drive_upload_or_update(local_indicatori_misura_csv, DRIVE_PAD26_INDICATORI)
-# drive_upload_or_update(local_indicatori_misura_rds, DRIVE_PAD26_INDICATORI)
-# 
-# 
-# ## 10.3 Indicatori per macro-gruppo PA - Forma giuridica ####
-# indicatori_pad26_forma_giuridica <- pad26_raccordato %>%
-#   group_by(
-#     forma_giuridica,
-#     descr_forma_giuridica,
-#     presente_mpa,
-#     presente_s13,
-#     presente_bdap,
-#     match_lista
-#   ) %>%
-#   summarise(
-#     n_candidature = n(),
-#     n_enti = n_distinct(ente_key, na.rm = TRUE),
-#     n_misure = n_distinct(avviso, na.rm = TRUE),
-#     importo_finanziato = sum(importo_finanziamento, na.rm = TRUE),
-#     .groups = "drop"
-#   ) %>%
-#   arrange(desc(importo_finanziato))
-# 
-# local_indicatori_fg_csv <- file.path(
-#   DIR_PAD26_INDICATORI_LOCAL,
-#   "indicatori_padigitale2026_forma_giuridica.csv"
-# )
-# 
-# write_csv(indicatori_pad26_forma_giuridica, local_indicatori_fg_csv)
-# drive_upload_or_update(local_indicatori_fg_csv, DRIVE_PAD26_INDICATORI)
-# 
-# 
-# ## 10.4 Indicatori territoriali ####
-# indicatori_pad26_regione <- pad26_raccordato %>%
-#   group_by(
-#     cod_regione,
-#     regione,
-#     forma_giuridica,
-#     descr_forma_giuridica,
-#     match_lista
-#   ) %>%
-#   summarise(
-#     n_candidature = n(),
-#     n_enti = n_distinct(ente_key, na.rm = TRUE),
-#     importo_finanziato = sum(importo_finanziamento, na.rm = TRUE),
-#     .groups = "drop"
-#   )
-# 
-# local_indicatori_regione_csv <- file.path(
-#   DIR_PAD26_INDICATORI_LOCAL,
-#   "indicatori_padigitale2026_regione.csv"
-# )
-# 
-# local_indicatori_regione_rds <- file.path(
-#   DIR_PAD26_INDICATORI_LOCAL,
-#   "indicatori_padigitale2026_regione.rds"
-# )
-# 
-# write_csv(indicatori_pad26_regione, local_indicatori_regione_csv)
-# saveRDS(indicatori_pad26_regione, local_indicatori_regione_rds)
-# 
-# drive_upload_or_update(local_indicatori_regione_csv, DRIVE_PAD26_INDICATORI)
-# drive_upload_or_update(local_indicatori_regione_rds, DRIVE_PAD26_INDICATORI)
-# 
-# 
-# ## 10.5 Dataset dashboard ####
-# dashboard_pad26 <- pad26_raccordato %>%
-#   select(
-#     tipo_file_candidatura,
-#     dataset_id,
-#     avviso,
-#     ente,
-#     ente_key,
-#     codice_ipa,
-#     codice_ipa_key,
-#     tipologia_ente,
-#     comune,
-#     provincia,
-#     regione,
-#     cod_comune,
-#     cod_provincia,
-#     cod_regione,
-#     importo_finanziamento,
-#     stato_candidatura,
-#     stato_candidatura_key,
-#     codice_cup,
-#     
-#     match_lista,
-#     tipo_match,
-#     
-#     codice_fiscale,
-#     codice_ente_ipa,
-#     codice_ente_siope,
-#     ragione_sociale,
-#     
-#     forma_giuridica,
-#     descr_forma_giuridica,
-#     ateco_bdap,
-#     descr_ateco_bdap,
-#     
-#     presente_mpa,
-#     presente_s13,
-#     presente_bdap,
-#     codice_unita_mpa,
-#     codice_unita_s13,
-#     
-#     codice_regione_lista,
-#     fonte_codice_reg,
-#     fonte_ragione_sociale,
-#     fonte_fg,
-#     
-#     bdap_record_storicizzato,
-#     bdap_storicizzazione_ambigua,
-#     bdap_n_righe_originali
-#   )
-# 
-# local_dashboard_csv <- file.path(
-#   DIR_PAD26_INDICATORI_LOCAL,
-#   "dashboard_padigitale2026.csv"
-# )
-# 
-# local_dashboard_rds <- file.path(
-#   DIR_PAD26_INDICATORI_LOCAL,
-#   "dashboard_padigitale2026.rds"
-# )
-# 
-# write_csv(dashboard_pad26, local_dashboard_csv)
-# saveRDS(dashboard_pad26, local_dashboard_rds)
-# 
-# drive_upload_or_update(local_dashboard_csv, DRIVE_PAD26_INDICATORI)
-# drive_upload_or_update(local_dashboard_rds, DRIVE_PAD26_INDICATORI)
-# 
-# # 11) OUTPUT COMPLETO --------------------------------------------------------
-# 
-# local_padigitale2026_raccordato_lista_csv <- file.path(
-#   DIR_PAD26_RACCORDATO_LOCAL,
-#   "padigitale2026_raccordato_lista.csv"
-# )
-# 
-# local_padigitale2026_raccordato_lista_rds <- file.path(
-#   DIR_PAD26_RACCORDATO_LOCAL,
-#   "padigitale2026_raccordato_lista.rds"
-# )
-# 
-# write_csv(pad26_raccordato, local_padigitale2026_raccordato_lista_csv)
-# saveRDS(pad26_raccordato, local_padigitale2026_raccordato_lista_rds)
-# 
-# drive_upload_or_update(
-#   local_path = local_padigitale2026_raccordato_lista_csv,
-#   drive_folder_rel = DRIVE_PAD26_RACCORDATO
-# )
-# 
-# drive_upload_or_update(
-#   local_path = local_padigitale2026_raccordato_lista_rds,
-#   drive_folder_rel = DRIVE_PAD26_RACCORDATO
-# )
-# 
-# 
-# message("Raccordo PA digitale 2026 completato.")
-# message("RUN_ID_IMPORT: ", RUN_ID_IMPORT)
-# message("RUN_ID raccordo: ", RUN_ID)
-# message("- Drive raccordato: ", DRIVE_PAD26_RACCORDATO)
-# message("- Drive indicatori/dashboard: ", DRIVE_PAD26_INDICATORI)
-# message("- Drive logs: ", DRIVE_PAD26_LOGS)
-# 
-# if (delete_local_temp) {
-#   unlink(file.path(DIR_TEMP, "PADigitale2026", "Processed", RUN_ID_IMPORT), recursive = TRUE)
-#   unlink(file.path(DIR_TEMP, "PADigitale2026", "Output", RUN_ID), recursive = TRUE)
-#   unlink(file.path(DIR_TEMP, "PADigitale2026", "Logs", RUN_ID), recursive = TRUE)
-#   unlink(file.path(DIR_TEMP, "PADigitale2026", "Indicatori", RUN_ID), recursive = TRUE)
-#   unlink(file.path(DIR_TEMP, "PADigitale2026", "Processed_raccordato", RUN_ID), recursive = TRUE)
-#   unlink(file.path(DIR_TEMP, "Lista_raccordo_SIM.xlsx"), recursive = FALSE)
-# }
-# # 
-# check_scuole_lista <- lista_base %>%
-#   filter(
-#     stringr::str_detect(
-#       normalizza_testo(
-#         paste(
-#           ragione_sociale,
-#           desc_fg,
-#           descr_categoria_ipa_bdap,
-#           descr_tipologia_ipa_bdap
-#         )
-#       ),
-#       "SCUOL|ISTITUT.*COMPRENSIV|DIREZIONE DIDATTIC|LICEO|CIRCOLO DIDATTIC"
-#     )
-#   ) %>%
-#   select(
-#     codice_fiscale,
-#     codice_ente_ipa,
-#     ragione_sociale,
-#     fg,
-#     desc_fg,
-#     descr_categoria_ipa_bdap,
-#     descr_tipologia_ipa_bdap,
-#     presente_mpa,
-#     presente_s13,
-#     presente_bdap
-#   )
-# 
-# check_scuole_lista %>%
-#   count(
-#     presente_mpa,
-#     presente_s13,
-#     presente_bdap,
-#     desc_fg,
-#     sort = TRUE
-#   )
-# 
-# # pad26_scuole <- pad26_std %>%
-#   filter(tipo_file_candidatura == "candidature_scuole_finanziate")
-# 
-# pad26_altrienti <- pad26_std %>%
-#   filter(tipo_file_candidatura == "candidature_altrienti_finanziate")
-# 
-# 
-# check_match_scuole_ipa <- pad26_scuole %>%
-#   distinct(
-#     codice_ipa,
-#     codice_ipa_key,
-#     ente,
-#     ente_key,
-#     comune,
-#     provincia,
-#     regione
-#   ) %>%
-#   left_join(
-#     lista_base %>%
-#       select(
-#         lista_row_id,
-#         codice_ipa_key,
-#         codice_ente_ipa,
-#         codice_fiscale,
-#         ragione_sociale,
-#         fg,
-#         desc_fg,
-#         presente_mpa
-#       ),
-#     by = "codice_ipa_key"
-#   ) %>%
-#   mutate(
-#     match_lista_ipa = as.integer(!is.na(lista_row_id))
-#   )
-# 
-# 
-# # chiusura Log console -------
-# 
-# # Chiude il file e ripristina la console.
-# console_log_path <- stop_console_log(
-#   console_log,
-#   status = "completed"
-# )
-# 
-# # Carica o aggiorna il log nella cartella 05_Logs su Drive.
-# drive_upload_or_update(
-#   local_path = console_log_path,
-#   drive_folder_rel = DRIVE_DIR_LOGS
-# )
+oggetti_log_null <- names(log_list)[
+  vapply(log_list, is.null, logical(1))
+]
 
+if (length(oggetti_log_null) > 0L) {
+  stop(
+    "Oggetti log NULL: ",
+    paste(oggetti_log_null, collapse = ", ")
+  )
+}
+
+local_log_excel <- file.path(
+  DIR_PAD26_METADATA_LOCAL,
+  "controlli_raccordo_padigitale2026_Lista_raccordo_SIM.xlsx"
+)
+
+openxlsx::write.xlsx(
+  x = log_list,
+  file = local_log_excel,
+  overwrite = TRUE
+)
+
+if (!file.exists(local_log_excel)) {
+  stop("Workbook dei controlli non creato: ", local_log_excel)
+}
+
+drive_upload_or_update(
+  local_path = local_log_excel,
+  drive_folder_rel = DRIVE_PAD26_METADATA
+)
+
+
+#==============================================================================#
+#### 16.2 METADATI SOURCE/PROCESSED                                        ----
+#==============================================================================#
+
+# Questi metadati documentano le variabili create o arricchite nello script 02.
+# I metadati degli indicatori e delle formule della dashboard restano invece
+# nello script 03_indicatori_padigitale2026.
+
+metadata_dataset_processed <- tibble::tribble(
+  ~dataset, ~ruolo, ~granularita, ~descrizione, ~fonte, ~run_id,
+  
+  "lista_pad26_long",
+  "dataset canonico processed",
+  "una riga per ente della lista e candidatura PAD26; una riga con PAD26 vuoto per gli enti senza candidature",
+  "Raccordo tra Lista SIM, candidature finanziate PA digitale 2026, IPA e dataset avvisi.",
+  "PA digitale 2026; IPA; Lista raccordo SIM",
+  RUN_ID,
+  
+  "lista_pad26_master",
+  "dimensione enti",
+  "una riga per ente della Lista SIM",
+  "Sintesi della partecipazione degli enti alle candidature PA digitale 2026.",
+  "Lista raccordo SIM; PA digitale 2026",
+  RUN_ID,
+  
+  "dim_avvisi_padigitale2026",
+  "dimensione avvisi",
+  "una riga per avviso ufficiale",
+  "Anagrafica degli avvisi con misura, periodo, stato, destinatari e importi stanziati.",
+  "PA digitale 2026 - dataset avvisi",
+  RUN_ID
+)
+
+metadata_variabili_raccordo <- tibble::tribble(
+  ~dataset, ~variabile, ~tipo, ~descrizione, ~provenienza, ~regola,
+  
+  "lista_pad26_long",
+  "pad26_avviso",
+  "character",
+  "Titolo dell'avviso così come riportato nella candidatura.",
+  "candidature finanziate",
+  "Valore originale; può includere una quota più specifica del titolo ufficiale.",
+  
+  "lista_pad26_long",
+  "pad26_titolo_avviso",
+  "character",
+  "Titolo ufficiale dell'avviso dopo il raccordo con il dataset avvisi.",
+  "dataset avvisi",
+  "Join many-to-one tramite chiave normalizzata; per quattro titoli è applicato un raccordo manuale documentato.",
+  
+  "lista_pad26_long",
+  "pad26_misura",
+  "character",
+  "Misura PA digitale 2026 associata all'avviso.",
+  "dataset avvisi",
+  "Ereditata dal titolo ufficiale dell'avviso.",
+  
+  "lista_pad26_long",
+  "pad26_data_inizio_bando",
+  "Date",
+  "Data di apertura del bando.",
+  "dataset avvisi",
+  "Ereditata dal titolo ufficiale dell'avviso.",
+  
+  "lista_pad26_long",
+  "pad26_data_fine_bando",
+  "Date",
+  "Data di chiusura del bando.",
+  "dataset avvisi",
+  "Ereditata dal titolo ufficiale dell'avviso.",
+  
+  "lista_pad26_long",
+  "pad26_anno_inizio_bando",
+  "integer",
+  "Anno della data di apertura del bando.",
+  "derivata",
+  "Anno estratto da pad26_data_inizio_bando.",
+  
+  "lista_pad26_long",
+  "pad26_anno_fine_bando",
+  "integer",
+  "Anno della data di chiusura del bando.",
+  "derivata",
+  "Anno estratto da pad26_data_fine_bando.",
+  
+  "lista_pad26_long",
+  "pad26_stato_avviso",
+  "character",
+  "Stato amministrativo dell'avviso.",
+  "dataset avvisi",
+  "Non coincide necessariamente con lo stato di avanzamento del progetto.",
+  
+  "lista_pad26_long",
+  "pad26_soggetti_destinatari",
+  "character",
+  "Categorie di soggetti destinatari dell'avviso.",
+  "dataset avvisi",
+  "Campo descrittivo dell'avviso; non identifica direttamente il singolo ente.",
+  
+  "lista_pad26_long",
+  "pad26_totale_importo_stanziato",
+  "numeric",
+  "Importo stanziato per l'avviso.",
+  "dataset avvisi",
+  "Ripetuto sulle candidature: non deve essere sommato a livello candidatura.",
+  
+  "lista_pad26_long",
+  "pad26_totale_importo_misura",
+  "numeric",
+  "Importo complessivo associato alla misura.",
+  "dataset avvisi",
+  "Ripetuto sulle candidature: non deve essere sommato a livello candidatura.",
+  
+  "lista_pad26_long",
+  "pad26_match_avviso",
+  "logical",
+  "Indica se la candidatura è stata raccordata al dataset avvisi.",
+  "derivata",
+  "TRUE quando è disponibile un titolo ufficiale associato.",
+  
+  "lista_pad26_long",
+  "pad26_raccordo_avviso_manuale",
+  "logical",
+  "Indica se il raccordo candidatura-avviso è stato risolto tramite tabella manuale.",
+  "derivata",
+  "TRUE per le candidature con quota 1.1 o 1.2 dei bandi ASL/AO di giugno e ottobre 2025.",
+  
+  "lista_pad26_long",
+  "pad26_motivo_raccordo",
+  "character",
+  "Motivazione del raccordo manuale candidatura-avviso.",
+  "raccordo manuale",
+  "Documenta la differenza tra titolo candidatura e titolo ufficiale.",
+  
+  "lista_pad26_long",
+  "pad26_motivo_non_match_avviso",
+  "character",
+  "Motivo dell'eventuale mancato raccordo con il dataset avvisi.",
+  "derivata",
+  "Valorizzata soltanto per i titoli non presenti nel dataset avvisi.",
+  
+  "lista_pad26_long",
+  "in_pad26",
+  "integer",
+  "Indica se l'ente della Lista SIM ha almeno una candidatura nella riga.",
+  "derivata",
+  "1 se pad26_row_id è valorizzato, altrimenti 0."
+)
+
+metadata_raccordo_avvisi <- tibble::tibble(
+  campo = c(
+    "chiave_candidature",
+    "chiave_avvisi",
+    "cardinalita",
+    "normalizzazione",
+    "raccordi_manuali",
+    "quota_match_finale"
+  ),
+  valore = c(
+    "avviso",
+    "titolo",
+    "molte candidature -> un avviso",
+    "maiuscole, apostrofi, trattini, slash e spazi normalizzati",
+    as.character(check_join_avvisi$n_raccordi_manuali),
+    as.character(check_join_avvisi$quota_match_avviso)
+  )
+)
+
+local_metadata_excel <- file.path(
+  DIR_PAD26_METADATA_LOCAL,
+  "metadati_processed_padigitale2026.xlsx"
+)
+
+openxlsx::write.xlsx(
+  x = list(
+    "Dataset processed" = metadata_dataset_processed,
+    "Variabili raccordo" = metadata_variabili_raccordo,
+    "Metodo join avvisi" = metadata_raccordo_avvisi,
+    "Raccordi manuali" = raccordo_avvisi_manual
+  ),
+  file = local_metadata_excel,
+  overwrite = TRUE
+)
+
+local_metadata_variabili_csv <- file.path(
+  DIR_PAD26_METADATA_LOCAL,
+  "metadata_variabili_raccordo_padigitale2026.csv"
+)
+
+local_metadata_variabili_json <- file.path(
+  DIR_PAD26_METADATA_LOCAL,
+  "metadata_variabili_raccordo_padigitale2026.json"
+)
+
+readr::write_csv(
+  metadata_variabili_raccordo,
+  local_metadata_variabili_csv,
+  na = ""
+)
+
+jsonlite::write_json(
+  metadata_variabili_raccordo,
+  local_metadata_variabili_json,
+  dataframe = "rows",
+  na = "null",
+  null = "null",
+  pretty = TRUE,
+  auto_unbox = TRUE
+)
+
+metadata_paths <- c(
+  local_metadata_excel,
+  local_metadata_variabili_csv,
+  local_metadata_variabili_json
+)
+
+if (!all(file.exists(metadata_paths))) {
+  stop(
+    "Uno o più file di metadati non sono stati creati: ",
+    paste(metadata_paths[!file.exists(metadata_paths)], collapse = ", ")
+  )
+}
+
+purrr::walk(
+  metadata_paths,
+  ~ drive_upload_or_update(
+    local_path = .x,
+    drive_folder_rel = DRIVE_PAD26_METADATA
+  )
+)
+
+
+#==============================================================================#
+#### 17) CHIUSURA RUN                                                      ----
+#==============================================================================#
+
+message("Raccordo PA digitale 2026 completato.")
+message("RUN_ID_IMPORT: ", RUN_ID_IMPORT)
+message("RUN_ID raccordo: ", RUN_ID)
+message("- Processed: ", DRIVE_PAD26_PROCESSED)
+message("- Metadati e controlli: ", DRIVE_PAD26_METADATA)
+message("- Log: ", DRIVE_PAD26_LOGS)
+
+console_log_path <- stop_console_log(
+  console_log,
+  status = "completed"
+)
+
+drive_upload_or_update(
+  local_path = console_log_path,
+  drive_folder_rel = DRIVE_PAD26_LOGS
+)
+
+if (delete_local_temp) {
+  unlink(
+    file.path(DIR_TEMP, "PADigitale2026", "Processed", RUN_ID_IMPORT),
+    recursive = TRUE
+  )
+  unlink(
+    file.path(DIR_TEMP, "PADigitale2026", "Processed", RUN_ID),
+    recursive = TRUE
+  )
+  unlink(
+    file.path(DIR_TEMP, "PADigitale2026", "Logs", RUN_ID),
+    recursive = TRUE
+  )
+  unlink(
+    file.path(DIR_TEMP, "PADigitale2026", "Metadata", RUN_ID),
+    recursive = TRUE
+  )
+  unlink(
+    file.path(DIR_TEMP, "Lista_raccordo_SIM.xlsx"),
+    recursive = FALSE
+  )
+}
+
+message(
+  "--- 02_raccordo_padigitale2026_lista completato. RUN_ID: ",
+  RUN_ID,
+  " ---"
+)

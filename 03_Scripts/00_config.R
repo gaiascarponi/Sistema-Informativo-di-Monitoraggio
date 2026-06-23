@@ -30,12 +30,16 @@ DRIVE_DIR_METADATA  <- "02_Metadata"
 DIR_SOURCE_MET      <- "02_Metadata/Source_met"
 DRIVE_DIR_OUTPUT    <- "04_Output"
 
+# Conto annuale
 DRIVE_DIR_LOGS      <- "05_Logs"
 DRIVE_DIR_LOGS_CA   <- "05_Logs/Conto_annuale"
 
 DRIVE_DIR_DOCS      <- "06_Docs"
 DRIVE_DIR_DOCS      <- "06_Docs/Conto_annuale"
 
+DRIVE_DIR_METADATA_CA  <- "02_Metadata/Conto_annuale"
+DIR_SOURCE_MET_CA      <- "02_Metadata/Source_met/Conto_annuale"
+DRIVE_DIR_OUTPUT_CA    <- "04_Output/Conto_annuale"
 
 # ============================================================
 # Path locali: solo cache/appoggio tecnico

@@ -23,6 +23,8 @@ rm(list = ls())
 
 source("03_Scripts/00_config.R")
 source("03_Scripts/00_sim_helpers.R")
+source("03_Scripts/00_drive_helpers.R")
+source("03_Scripts/Conto_annuale/00_ca_helpers.R")
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -51,126 +53,34 @@ if (exists("SIM_DRIVE_EMAIL")) {
 
 anni_ca <- c(2021, 2022, 2023)
 
-DIR_LOGS_CA <- file.path("05_Logs", "Conto_annuale")
-dir.create(DIR_LOGS_CA, recursive = TRUE, showWarnings = FALSE)
+# DIR_LOGS_CA <- file.path("05_Logs", "Conto_annuale")
+# if (!dir.exists(DIR_LOGS_CA)) dir.create(DIR_LOGS_CA, recursive = TRUE, showWarnings = FALSE)
 
-# 1) FUNZIONI DRIVE ---------------------------------------------------------
+# 4) Parametri del run --------------------------------------------------------
 
-ca_drive_files <- function(anno, sottocartella) {
-  dir <- sim_drive_ls_path(
-    file.path(DRIVE_DIR_SOURCE, "Conto_annuale", paste0("CA_", anno), sottocartella),
-    create = FALSE
-  )
-  googledrive::drive_ls(dir)
-}
+RUN_ID <- format(Sys.time(), "%Y%m%d_%H%M%S")
+message("RUN_ID import: ", RUN_ID)
 
-ca_download_read <- function(file, local_name) {
-  local <- sim_drive_download_to_temp(
-    file,
-    local_name = local_name,
-    overwrite = TRUE
-  )
-  df <- sim_read_any_table(local) %>%
-    janitor::clean_names()
-  unlink(local)
-  df
-}
+# parametro per pulire la cartella temp alla fine del run
+delete_local_temp <- FALSE
 
-ca_find_file <- function(anno, sottocartella, pattern) {
-  files <- ca_drive_files(anno, sottocartella)
+# 7) Avvio console log --------------------------------------------------------
 
-  files %>%
-    dplyr::filter(
-      stringr::str_detect(
-        .data$name,
-        stringr::regex(pattern, ignore_case = TRUE)
-      )
-    ) %>%
-    dplyr::arrange(.data$name)
-}
-
-ca_read_dataset <- function(anno, pattern, dataset_nome) {
-  files <- ca_find_file(anno, "Dati", pattern)
-
-  if (nrow(files) == 0) {
-    warning("Dataset ", dataset_nome, " non trovato per anno ", anno)
-    return(tibble::tibble())
-  }
-
-  ext <- tools::file_ext(files$name[1])
-
-  ca_download_read(
-    files[1, ],
-    local_name = paste0(dataset_nome, "_", anno, ".", ext)
-  ) %>%
-    dplyr::mutate(
-      anno = anno,
-      dataset_origine = dataset_nome,
-      file_origine = files$name[1],
-      .before = 1
-    )
-}
-
-# Upload versionato: non sostituisce e non cestina file esistenti.
-# Serve a evitare errori 403 quando l'account non può eliminare file già presenti.
-ca_save_rds_upload_versioned <- function(obj, drive_path, filename) {
-  dir_drive <- sim_drive_mkdir_path(drive_path)
-  local_file <- file.path(DIR_TEMP, filename)
-  saveRDS(obj, local_file)
-  googledrive::drive_upload(
-    media = local_file,
-    path = dir_drive,
-    name = filename
-  )
-  unlink(local_file)
-}
-
-ca_write_csv_upload_versioned <- function(obj, drive_path, filename) {
-  dir_drive <- sim_drive_mkdir_path(drive_path)
-  local_file <- file.path(DIR_TEMP, filename)
-  readr::write_csv(obj, local_file)
-  googledrive::drive_upload(
-    media = local_file,
-    path = dir_drive,
-    name = filename
-  )
-  unlink(local_file)
-}
-
-ca_write_json_upload_versioned <- function(
-    df,
-    drive_path,
-    filename
-) {
-  
-  local_file <- file.path(DIR_TEMP, filename)
-  
-  jsonlite::write_json(
-    df,
-    path = local_file,
-    pretty = TRUE,
-    auto_unbox = TRUE,
-    na = "null"
-  )
-  
-  sim_upload_file(
-    local_file = local_file,
-    drive_folder = sim_drive_ls_path(drive_path),
-    filename = filename,
-    add_timestamp = FALSE
-  )
-  
-  unlink(local_file)
-}
+script_name <- "02_ca_costruzione_master_pa.R"
+console_log <- start_console_log(
+  log_dir = DRIVE_CA_LOGS,
+  run_id = RUN_ID,
+  script_name = script_name
+)
 
 # 2) FUNZIONI STANDARDIZZAZIONE --------------------------------------------
 
-ca_to_num <- function(x) {
-  x <- as.character(x)
-  x <- stringr::str_replace_all(x, "\\.", "")
-  x <- stringr::str_replace_all(x, ",", ".")
-  suppressWarnings(as.numeric(x))
-}
+# ca_to_num <- function(x) {
+#   x <- as.character(x)
+#   x <- stringr::str_replace_all(x, "\\.", "")
+#   x <- stringr::str_replace_all(x, ",", ".")
+#   suppressWarnings(as.numeric(x))
+# }
 
 ca_norm_cf <- function(x) {
   x %>%
@@ -226,6 +136,28 @@ ca_add_istituzione <- function(df) {
     " manca la chiave istituzione. Colonne disponibili: ",
     paste(names(df), collapse = ", ")
   )
+}
+
+ca_read_dataset <- function(anno, pattern, dataset_nome) {
+  files <- ca_find_file(anno, "Dati", pattern)
+  
+  if (nrow(files) == 0) {
+    warning("Dataset ", dataset_nome, " non trovato per anno ", anno)
+    return(tibble::tibble())
+  }
+  
+  ext <- tools::file_ext(files$name[1])
+  
+  ca_download_read(
+    files[1, ],
+    local_name = paste0(dataset_nome, "_", anno, ".", ext)
+  ) %>%
+    dplyr::mutate(
+      anno = anno,
+      dataset_origine = dataset_nome,
+      file_origine = files$name[1],
+      .before = 1
+    )
 }
 
 # 3) ANAGRAFICA ISTITUZIONI -------------------------------------------------
@@ -315,12 +247,12 @@ ca_agg_occupazione <- function(df) {
 
   df %>%
     dplyr::mutate(
-      personale_tempo_pieno_uomini   = ca_to_num(.data$personale_tempo_pieno_uomini),
-      personale_tempo_pieno_donne    = ca_to_num(.data$personale_tempo_pieno_donne),
-      part_time_inf50_percent_uomini = ca_to_num(.data$part_time_inf50_percent_uomini),
-      part_time_inf50_percent_donne  = ca_to_num(.data$part_time_inf50_percent_donne),
-      part_time_sup50_percent_uomini = ca_to_num(.data$part_time_sup50_percent_uomini),
-      part_time_sup50_percent_donne  = ca_to_num(.data$part_time_sup50_percent_donne),
+      personale_tempo_pieno_uomini   = as.numeric(.data$personale_tempo_pieno_uomini),
+      personale_tempo_pieno_donne    = as.numeric(.data$personale_tempo_pieno_donne),
+      part_time_inf50_percent_uomini = as.numeric(.data$part_time_inf50_percent_uomini),
+      part_time_inf50_percent_donne  = as.numeric(.data$part_time_inf50_percent_donne),
+      part_time_sup50_percent_uomini = as.numeric(.data$part_time_sup50_percent_uomini),
+      part_time_sup50_percent_donne  = as.numeric(.data$part_time_sup50_percent_donne),
 
       TEMPO_PIENO_UOMINI = personale_tempo_pieno_uomini,
       TEMPO_PIENO_DONNE  = personale_tempo_pieno_donne,
@@ -394,9 +326,9 @@ ca_agg_flusso <- function(df, prefisso) {
 
   df %>%
     dplyr::mutate(
-      val_uomini = if (!is.null(col_u)) ca_to_num(.data[[col_u]]) else NA_real_,
-      val_donne  = if (!is.null(col_d)) ca_to_num(.data[[col_d]]) else NA_real_,
-      val_totale = if (!is.null(col_tot)) ca_to_num(.data[[col_tot]]) else val_uomini + val_donne
+      val_uomini = if (!is.null(col_u)) as.numeric(.data[[col_u]]) else NA_real_,
+      val_donne  = if (!is.null(col_d)) as.numeric(.data[[col_d]]) else NA_real_,
+      val_totale = if (!is.null(col_tot)) as.numeric(.data[[col_tot]]) else val_uomini + val_donne
     ) %>%
     dplyr::group_by(anno, istituzione) %>%
     dplyr::summarise(
@@ -425,10 +357,10 @@ ca_agg_eta <- function(df) {
   df %>%
     dplyr::mutate(
       fascia_eta = as.character(fascia_eta),
-      uomini = ca_to_num(uomini),
-      donne  = ca_to_num(donne),
-      media_uomini = ca_to_num(media_uomini),
-      media_donne  = ca_to_num(media_donne),
+      uomini = as.numeric(uomini),
+      donne  = as.numeric(donne),
+      media_uomini = as.numeric(media_uomini),
+      media_donne  = as.numeric(media_donne),
       n_eta = uomini + donne,
 
       is_under35 = fascia_eta %in% c("E0", "E20", "E25", "E30"),
@@ -485,10 +417,10 @@ ca_agg_formazione <- function(df) {
 
   df %>%
     dplyr::mutate(
-      form_u = if (!is.null(col_u)) ca_to_num(.data[[col_u]]) else NA_real_,
-      form_d = if (!is.null(col_d)) ca_to_num(.data[[col_d]]) else NA_real_,
-      form_mu = if (!is.null(col_mu)) ca_to_num(.data[[col_mu]]) else NA_real_,
-      form_md = if (!is.null(col_md)) ca_to_num(.data[[col_md]]) else NA_real_
+      form_u = if (!is.null(col_u)) as.numeric(.data[[col_u]]) else NA_real_,
+      form_d = if (!is.null(col_d)) as.numeric(.data[[col_d]]) else NA_real_,
+      form_mu = if (!is.null(col_mu)) as.numeric(.data[[col_mu]]) else NA_real_,
+      form_md = if (!is.null(col_md)) as.numeric(.data[[col_md]]) else NA_real_
     ) %>%
     dplyr::group_by(anno, istituzione) %>%
     dplyr::summarise(
@@ -526,7 +458,7 @@ ca_agg_costo_lavoro <- function(df) {
   df %>%
     dplyr::mutate(
       VOCE_SPESA_TMP = as.character(.data[[voce_col]]),
-      TOTALE_SPESA_TMP = ca_to_num(.data[[spesa_col]])
+      TOTALE_SPESA_TMP = as.numeric(.data[[spesa_col]])
     ) %>%
     dplyr::group_by(anno, istituzione) %>%
     dplyr::summarise(
@@ -701,7 +633,7 @@ if (nrow(master_ca_raw) == 0) {
 readr::write_csv(
   log_match_dataset_anagrafica,
   file.path(
-    DIR_LOGS_CA,
+    DRIVE_CA_LOGS,
     paste0(
       "log_match_dataset_anagrafica_",
       format(Sys.time(), "%Y%m%d_%H%M%S"),
@@ -782,7 +714,7 @@ log_match_anagrafica_lista_sim <- base_mpa_anni %>%
 readr::write_csv(
   log_match_anagrafica_lista_sim,
   file.path(
-    DIR_LOGS_CA,
+    DRIVE_CA_LOGS,
     paste0(
       "log_match_anagrafica_lista_sim_",
       format(Sys.time(), "%Y%m%d_%H%M%S"),
@@ -817,7 +749,7 @@ log_match <- master_ca_mpa %>%
 readr::write_csv(
   log_match,
   file.path(
-    DIR_LOGS_CA,
+    DRIVE_CA_LOGS,
     paste0(
       "log_copertura_mpa_conto_annuale_",
       format(Sys.time(), "%Y%m%d_%H%M%S"),
@@ -848,19 +780,19 @@ filename_master_json <- paste0(
   ".json"
 )
 
-ca_save_rds_upload_versioned(
+save_rds_upload_versioned(
   master_ca_mpa,
   drive_path = file.path(DRIVE_DIR_PROCESSED, "Conto_annuale"),
   filename = filename_master_rds
 )
 
-ca_write_csv_upload_versioned(
+write_csv_upload_versioned(
   master_ca_mpa,
   drive_path = file.path(DRIVE_DIR_PROCESSED, "Conto_annuale"),
   filename = filename_master_csv
 )
 
-ca_write_json_upload_versioned(
+write_json_upload_versioned(
   master_ca_mpa,
   drive_path = file.path(DRIVE_DIR_PROCESSED, "Conto_annuale"),
   filename = filename_master_json
@@ -875,8 +807,8 @@ print(log_match)
 print(log_match_anagrafica_lista_sim)
 
 
-# 9) PULIZIA 07_TEMP ----------------------------------------------------------
-
+# #9) PULIZIA 07_TEMP ----------------------------------------------------------
+# 
 # file_xlsx_temp <- list.files(
 #   path = "07_Temp",
 #   pattern = "\\.xlsx$",

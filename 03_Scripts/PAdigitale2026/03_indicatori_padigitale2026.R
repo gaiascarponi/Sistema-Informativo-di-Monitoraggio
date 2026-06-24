@@ -73,32 +73,7 @@ ENTE_EDITORE <- "Presidenza del Consiglio dei ministri - Dipartimento per la tra
 message("RUN_ID_RACCORDO: ", RUN_ID_RACCORDO)
 message("RUN_ID indicatori: ", RUN_ID)
 
-# 5) Compatibilità nomi config -----------------------------------------------
-
-get_config_value <- function(name, default = NULL) {
-  if (exists(name, inherits = TRUE)) {
-    get(name, inherits = TRUE)
-  } else {
-    default
-  }
-}
-
-DRIVE_DIR_INDICATORS_BASE <- get_config_value(
-  "DRIVE_DIR_INDICATORS",
-  get_config_value("DRIVE_DIR_INDICATORI", file.path("01_Dataset", "Indicators"))
-)
-
-DRIVE_DIR_METADATA_BASE <- get_config_value(
-  "DRIVE_DIR_METADATA",
-  "02_Metadata"
-)
-
-DRIVE_DIR_INDICATORS_MET_BASE <- get_config_value(
-  "DRIVE_DIR_INDICATORS_MET",
-  file.path(DRIVE_DIR_METADATA_BASE, "Indicators_met")
-)
-
-# 6) Directory ---------------------------------------------------------------
+# 5) Directory ---------------------------------------------------------------
 
 DIR_PAD26_PROCESSED_INPUT_LOCAL <- file.path(
   DIR_TEMP, "PADigitale2026", "Processed", RUN_ID_RACCORDO
@@ -122,19 +97,23 @@ dir.create(DIR_PAD26_METADATA_LOCAL, recursive = TRUE, showWarnings = FALSE)
 dir.create(DIR_PAD26_LOGS_LOCAL, recursive = TRUE, showWarnings = FALSE)
 
 DRIVE_PAD26_PROCESSED_INPUT <- file.path(
-  DRIVE_DIR_PROCESSED, "PADigitale2026", RUN_ID_RACCORDO
+  DRIVE_DIR_PROCESSED_PAD26,
+  RUN_ID_RACCORDO
 )
 
 DRIVE_PAD26_INDICATORS <- file.path(
-  DRIVE_DIR_INDICATORS_BASE, "PADigitale2026", RUN_ID
+  DRIVE_DIR_INDICATORS_PAD26,
+  RUN_ID
 )
 
 DRIVE_PAD26_METADATA <- file.path(
-  DRIVE_DIR_INDICATORS_MET_BASE, "PADigitale2026", RUN_ID
+  DRIVE_DIR_INDICATORS_MET_PAD26,
+  RUN_ID
 )
 
 DRIVE_PAD26_LOGS <- file.path(
-  DRIVE_DIR_LOGS, "PADigitale2026", RUN_ID
+  DRIVE_DIR_LOGS_PAD26,
+  RUN_ID
 )
 
 # 7) Log ---------------------------------------------------------------------

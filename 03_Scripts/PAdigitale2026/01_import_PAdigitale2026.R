@@ -22,14 +22,14 @@ source("03_Scripts/helper_console_log.R")
 # 2) Pacchetti ---------------------------------------------------------------
 
 {library(dplyr)
-library(readr)
-library(readxl)   
-library(janitor)
-library(stringr)
-library(purrr)
-library(lubridate)
-library(googledrive)
-library(openxlsx)
+  library(readr)
+  library(readxl)   
+  library(janitor)
+  library(stringr)
+  library(purrr)
+  library(lubridate)
+  library(googledrive)
+  library(openxlsx)
 }
 
 # 3) Autenticazione Drive --------------------------------------------------------
@@ -84,10 +84,10 @@ DIR_PAD26_PROCESSED_LOCAL <- file.path(DIR_TEMP, "PADigitale2026", "Processed", 
 DIR_PAD26_METADATA_LOCAL <- file.path(DIR_TEMP, "PADigitale2026", "Metadata", RUN_ID)
 DIR_PAD26_LOGS_LOCAL <- file.path(DIR_TEMP, "PADigitale2026", "Logs", RUN_ID)
 
-DRIVE_PAD26_SOURCE <- file.path(DRIVE_DIR_SOURCE, "PADigitale2026", RUN_ID)
-DRIVE_PAD26_PROCESSED <- file.path(DRIVE_DIR_PROCESSED, "PADigitale2026", RUN_ID)
-DRIVE_PAD26_METADATA <- file.path(DRIVE_DIR_METADATA, "Source_met", "PADigitale2026", RUN_ID)
-DRIVE_PAD26_LOGS <- file.path(DRIVE_DIR_LOGS, "PADigitale2026", RUN_ID)
+DRIVE_PAD26_SOURCE <- file.path(DRIVE_DIR_SOURCE_PAD26, RUN_ID)
+DRIVE_PAD26_PROCESSED <- file.path(DRIVE_DIR_PROCESSED_PAD26, RUN_ID)
+DRIVE_PAD26_METADATA <- file.path(DRIVE_DIR_SOURCE_MET_PAD26, RUN_ID)
+DRIVE_PAD26_LOGS <- file.path(DRIVE_DIR_LOGS_PAD26, RUN_ID)
 }
 # 6) Creazione directory locali ----------------------------------------------
 
@@ -104,7 +104,7 @@ console_log <- start_console_log(
   run_id = RUN_ID,
   script_name = "01_import_PAdigitale2026"
 )
-  
+
 # 8) URL file sorgente ----------------------------------------------------
 
 base_raw_url <- "https://raw.githubusercontent.com/teamdigitale/padigitale2026-opendata/main/data"
@@ -325,7 +325,7 @@ colonne_ipa_enti_attese <- c(
   "codice_fiscale_ente",
   "tipologia",
   "codice_categoria"
-#   "codice_ateco"            "ente_in_liquidazione"    "codice_miur"             "codice_istat"            "acronimo"                "nome_responsabile"   
+  #   "codice_ateco"            "ente_in_liquidazione"    "codice_miur"             "codice_istat"            "acronimo"                "nome_responsabile"   
 )
 
 stopifnot(

@@ -51,7 +51,7 @@ googledrive::drive_auth(scopes = "https://www.googleapis.com/auth/drive")
 # parametro per pulire la cartella temp alla fine del run
 delete_local_temp <- FALSE
 
-RUN_ID_IMPORT <- "20260620_030101"  # da copiare dall'output dello script 01
+RUN_ID_IMPORT <- "20260624_162127"  # da copiare dall'output dello script 01
 RUN_ID <- format(Sys.time(), "%Y%m%d_%H%M%S")
 
 message("RUN_ID_IMPORT: ", RUN_ID_IMPORT)
@@ -69,12 +69,12 @@ message("RUN_ID raccordo: ", RUN_ID)
   DIR_PAD26_INDICATORI_LOCAL <- file.path(DIR_TEMP, "PADigitale2026", "Indicatori", RUN_ID)
   
   # Percorsi Drive.
-  DRIVE_PAD26_PROCESSED_INPUT <- file.path(DRIVE_DIR_PROCESSED, "PADigitale2026", RUN_ID_IMPORT)
-  DRIVE_PAD26_PROCESSED <- file.path(DRIVE_DIR_PROCESSED, "PADigitale2026", RUN_ID)
-  DRIVE_PAD26_OUTPUT    <- file.path(DRIVE_DIR_OUTPUT, "PADigitale2026", RUN_ID)
-  DRIVE_PAD26_LOGS      <- file.path(DRIVE_DIR_LOGS, "PADigitale2026", RUN_ID)
-  DRIVE_PAD26_METADATA <- file.path(DRIVE_DIR_METADATA, "Source_met", "PADigitale2026", RUN_ID)
-  DRIVE_PAD26_INDICATORI <- file.path(DRIVE_DIR_INDICATORS,  "PADigitale2026",  RUN_ID)
+  DRIVE_PAD26_PROCESSED_INPUT <- file.path(DRIVE_DIR_PROCESSED_PAD26, RUN_ID_IMPORT)
+  DRIVE_PAD26_PROCESSED <- file.path(DRIVE_DIR_PROCESSED_PAD26, RUN_ID)
+  DRIVE_PAD26_OUTPUT <- file.path(DRIVE_DIR_OUTPUT_PAD26, RUN_ID)
+  DRIVE_PAD26_LOGS <- file.path(DRIVE_DIR_LOGS_PAD26, RUN_ID)
+  DRIVE_PAD26_METADATA <- file.path(DRIVE_DIR_SOURCE_MET_PAD26, RUN_ID)
+  DRIVE_PAD26_INDICATORI <- file.path(DRIVE_DIR_INDICATORS_PAD26, RUN_ID)
 }
 
 # 6) Creazione directory locali ----------------------------------------------
@@ -417,21 +417,19 @@ dim_avvisi_padigitale2026 <- avvisi_std %>%
 
 # 13) IMPORT MASTER LIST DA DRIVE --------------------------------------------
 
-file_lista_local <- file.path(DIR_TEMP, "Lista_raccordo_SIM.xlsx")
+file_lista_local <- file.path(
+  DIR_TEMP,
+  basename(DRIVE_FILE_LISTA_RACCORDO_SIM_RDS)
+)
 
 drive_download_from_path(
-  drive_file_rel = file.path(DRIVE_DIR_LISTS, "Lista_raccordo_SIM.xlsx"),
+  drive_file_rel = DRIVE_FILE_LISTA_RACCORDO_SIM_RDS,
   local_path = file_lista_local
 )
 
-lista <- readxl::read_excel(
-  file_lista_local,
-  col_types = "text"
-) %>%
+lista <- readRDS(file_lista_local) %>%
+  tibble::as_tibble() %>%
   janitor::clean_names()
-
-# lista <- readxl::read_excel(file_lista_local) %>%
-#   janitor::clean_names()
 
 
 # 14) PREPARAZIONE MASTER LIST ------------------------------------------------

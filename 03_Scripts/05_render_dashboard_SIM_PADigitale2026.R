@@ -67,7 +67,7 @@ DRIVE_DIR_METADATA_BASE <- get_config_value(
   "02_Metadata"
 )
 
-DRIVE_DIR_INDICATORS_MET_BASE <- get_config_value(
+DRIVE_DIR_INDICATORS_MET <- get_config_value(
   "DRIVE_DIR_INDICATORS_MET",
   file.path(
     DRIVE_DIR_METADATA_BASE,
@@ -122,7 +122,7 @@ DRIVE_INDICATORS <- file.path(
 )
 
 DRIVE_METADATA <- file.path(
-  DRIVE_DIR_INDICATORS_MET_BASE,
+  DRIVE_DIR_INDICATORS_MET,
   "PADigitale2026",
   RUN_ID_INDICATORS
 )

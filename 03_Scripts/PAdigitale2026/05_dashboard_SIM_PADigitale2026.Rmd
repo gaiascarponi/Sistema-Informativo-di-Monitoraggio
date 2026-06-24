@@ -19,6 +19,8 @@ params:
 ---
 
 ```{r setup, include=FALSE}
+options(shiny.fullstacktrace = TRUE)
+
 knitr::opts_chunk$set(
   echo = FALSE,
   warning = FALSE,
@@ -137,6 +139,38 @@ metadata_indicatori <- read_json_tbl(
 
 metadata_filtri <- read_json_tbl(
   dashboard_params$file_metadata_filtri
+)
+
+
+message(
+  "PA Digitale 2026 — input caricati: ",
+  format(nrow(fact_pad26), big.mark = ".", decimal.mark = ","),
+  " righe fact; ",
+  format(nrow(dim_enti), big.mark = ".", decimal.mark = ","),
+  " enti; ",
+  format(nrow(dim_avvisi), big.mark = ".", decimal.mark = ","),
+  " avvisi."
+)
+
+input_diagnostics <- tibble::tibble(
+  input = names(input_files),
+  path = unname(unlist(input_files)),
+  exists = vapply(
+    unname(input_files),
+    file.exists,
+    logical(1)
+  ),
+  size_bytes = vapply(
+    unname(input_files),
+    function(path) {
+      if (file.exists(path)) {
+        as.numeric(file.info(path)$size)
+      } else {
+        NA_real_
+      }
+    },
+    numeric(1)
+  )
 )
 
 fact_pad26 <- fact_pad26 |>

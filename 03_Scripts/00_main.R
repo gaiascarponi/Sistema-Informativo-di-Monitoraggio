@@ -63,6 +63,7 @@ library(writexl)
 library(purrr)
 library(stringr)
 library(tibble)
+library(jsonlite)
 
 #..............................................................................#
 #                             CONFIGURATIONS                                ####
@@ -107,7 +108,10 @@ local_file_s13  <- file.path(DIR_TEMP, file_s13_name)
 local_file_bdap <- file.path(DIR_TEMP, file_bdap_name)
 
 # Output locali temporanei.
-local_lista_file    <- file.path(DIR_TEMP, "Lista_raccordo_SIM.xlsx")
+local_lista_xlsx    <- file.path(DIR_TEMP, "Lista_raccordo_SIM.xlsx")
+local_lista_rds <- file.path(DIR_TEMP, "Lista_raccordo_SIM.rds")
+local_lista_json <- file.path(DIR_TEMP, "Lista_raccordo_SIM.json")
+
 local_integrazione_qualita_file    <- file.path(DIR_TEMP, paste0("lista_integrazione_qualita_", RUN_ID, ".xlsx"))
 local_metadata_file <- file.path(DIR_TEMP, paste0("metadata_lista_", RUN_ID, ".xlsx"))
 
@@ -1525,10 +1529,31 @@ metadata_variabili <- tribble(
 #                     EXPORT LOCALE IN 07_TEMP                              ####
 #..............................................................................#
 
-# Lista finale pulita.
+# Excel per consultazione umana.
 writexl::write_xlsx(
   lista,
-  path = local_lista_file
+  path = local_lista_xlsx
+)
+
+# RDS come formato operativo per gli script R e la dashboard.
+saveRDS(
+  object = lista,
+  file = local_lista_rds,
+  compress = "xz"
+)
+
+# JSON opzionale per interoperabilità.
+jsonlite::write_json(
+  x = lista,
+  path = local_lista_json,
+  dataframe = "rows",
+  na = "null",
+  null = "null",
+  pretty = FALSE,
+  auto_unbox = TRUE,
+  digits = NA,
+  Date = "ISO8601",
+  POSIXt = "ISO8601"
 )
 
 ## File audit completo.
@@ -1578,11 +1603,22 @@ writexl::write_xlsx(
 #..............................................................................#
 # Lista_raccordo_SIM.xlsx è il file operativo: viene caricato/aggiornato in 01_Dataset/Lists.
 drive_upload_or_update(
-  local_path = local_lista_file,
+  local_path = local_lista_xlsx,
   drive_folder_rel = DRIVE_DIR_LISTS,
   drive_name = "Lista_raccordo_SIM.xlsx"
 )
 
+drive_upload_or_update(
+  local_path = local_lista_rds,
+  drive_folder_rel = DRIVE_DIR_LISTS,
+  drive_name = "Lista_raccordo_SIM.rds"
+)
+
+drive_upload_or_update(
+  local_path = local_lista_json,
+  drive_folder_rel = DRIVE_DIR_LISTS,
+  drive_name = "Lista_raccordo_SIM.json"
+)
 # Il file audit è run-specific: lo salviamo nei log.
 drive_upload_or_update(
   local_path = local_integrazione_qualita_file,
@@ -1608,7 +1644,9 @@ if (delete_local_temp) {
     local_file_mpa,
     local_file_s13,
     local_file_bdap,
-    local_lista_file,
+    local_lista_xlsx,
+    local_lista_rds,
+    local_lista_json,
     local_audit_file,
     local_metadata_file
   )

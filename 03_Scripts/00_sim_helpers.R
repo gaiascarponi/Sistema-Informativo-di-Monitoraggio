@@ -81,9 +81,9 @@ sim_drive_ls_path <- function(path, create = FALSE) {
 
 # È solo una scorciatoia per:
 # sim_drive_ls_path(path, create = TRUE)
-# sim_drive_mkdir_path <- function(path) {
-#   sim_drive_ls_path(path, create = TRUE)
-# }
+sim_drive_mkdir_path <- function(path) {
+  sim_drive_ls_path(path, create = TRUE)
+}
 
 # sim_drive_upload_replace <- function(local_file,
 sim_drive_upload <- function(local_file,

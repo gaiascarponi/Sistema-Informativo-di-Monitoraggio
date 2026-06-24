@@ -19,12 +19,16 @@
 #   9. Salva output versionati su Drive e log locali nel repository
 
 
+# 1) SOURCE -------------------------------------------------------------------
 rm(list = ls())
 
 source("03_Scripts/00_config.R")
 source("03_Scripts/00_sim_helpers.R")
+source("03_Scripts/helper_console_log.R")
 source("03_Scripts/00_drive_helpers.R")
 source("03_Scripts/Conto_annuale/00_ca_helpers.R")
+source("03_Scripts/Conto_annuale/00_ca_config.R")
+
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -38,12 +42,15 @@ suppressPackageStartupMessages({
   library(tibble)
 })
 
+# 2 ) AUTENTICAZIONE ----------------------------------------------------------
+
 # Autenticazione Drive: usa l'account con accesso al Drive SIM.
 # Se in 00_config.R hai SIM_DRIVE_EMAIL, usa quello. Altrimenti usa la cache.
 if (exists("SIM_DRIVE_EMAIL")) {
   googledrive::drive_auth(
     email = SIM_DRIVE_EMAIL,
-    scopes = "https://www.googleapis.com/auth/drive"
+    scopes = "https://www.googleapis.com/auth/drive",
+    cache = TRUE
   )
 } else {
   googledrive::drive_auth(
@@ -56,7 +63,7 @@ anni_ca <- c(2021, 2022, 2023)
 # DIR_LOGS_CA <- file.path("05_Logs", "Conto_annuale")
 # if (!dir.exists(DIR_LOGS_CA)) dir.create(DIR_LOGS_CA, recursive = TRUE, showWarnings = FALSE)
 
-# 4) Parametri del run --------------------------------------------------------
+# 3) PARAMETRI DEL RUN --------------------------------------------------------
 
 RUN_ID <- format(Sys.time(), "%Y%m%d_%H%M%S")
 message("RUN_ID import: ", RUN_ID)
@@ -64,7 +71,7 @@ message("RUN_ID import: ", RUN_ID)
 # parametro per pulire la cartella temp alla fine del run
 delete_local_temp <- FALSE
 
-# 7) Avvio console log --------------------------------------------------------
+# 4) AVVIO CONSOLE LOG --------------------------------------------------------
 
 script_name <- "02_ca_costruzione_master_pa.R"
 console_log <- start_console_log(
@@ -73,7 +80,7 @@ console_log <- start_console_log(
   script_name = script_name
 )
 
-# 2) FUNZIONI STANDARDIZZAZIONE --------------------------------------------
+# 5) FUNZIONI STANDARDIZZAZIONE --------------------------------------------
 
 # ca_to_num <- function(x) {
 #   x <- as.character(x)
@@ -160,7 +167,7 @@ ca_read_dataset <- function(anno, pattern, dataset_nome) {
     )
 }
 
-# 3) ANAGRAFICA ISTITUZIONI -------------------------------------------------
+# 6) ANAGRAFICA ISTITUZIONI -------------------------------------------------
 
 ca_read_anagrafica_istituzioni <- function(anno) {
 
@@ -782,19 +789,19 @@ filename_master_json <- paste0(
 
 save_rds_upload_versioned(
   master_ca_mpa,
-  drive_path = file.path(DRIVE_DIR_PROCESSED, "Conto_annuale"),
+  drive_path = DRIVE_CA_PROCESSED,
   filename = filename_master_rds
 )
 
 write_csv_upload_versioned(
   master_ca_mpa,
-  drive_path = file.path(DRIVE_DIR_PROCESSED, "Conto_annuale"),
+  drive_path = DRIVE_CA_PROCESSED,
   filename = filename_master_csv
 )
 
 write_json_upload_versioned(
   master_ca_mpa,
-  drive_path = file.path(DRIVE_DIR_PROCESSED, "Conto_annuale"),
+  drive_path = DRIVE_CA_PROCESSED,
   filename = filename_master_json
 )
 
@@ -807,11 +814,27 @@ print(log_match)
 print(log_match_anagrafica_lista_sim)
 
 
-# #9) PULIZIA 07_TEMP ----------------------------------------------------------
-# 
-# file_xlsx_temp <- list.files(
-#   path = "07_Temp",
-#   pattern = "\\.xlsx$",
-#   full.names = TRUE
-# )
-# file.remove(file_xlsx_temp)
+# 9) Clean 07_TEMP ----------------------------------------------------------
+
+empt_temp <- list.files(
+  path = DIR_TEMP,
+  pattern = "\\.xlsx$|\\.csv$|\\.rds$",
+  full.names = TRUE
+)
+file.remove(empt_temp)
+
+message("Pulizia cartella temporanea.")
+
+# 16) CHIUSURA LOG ---------------------------------------------------------------
+
+# Chiude il file e ripristina la console
+console_log_path <- stop_console_log(
+  console_log,
+  status = "completed"
+)
+
+# Carica o aggiorna il log nella cartella 05_Logs su Drive
+drive_upload_or_update(
+  local_path = console_log_path,
+  drive_folder_rel = DRIVE_CA_LOGS
+)

@@ -38,4 +38,113 @@ purrr::walk(
   sim_drive_mkdir_path
 )
 
-message("Struttura Drive Conto Annuale verificata.")
+message("Struttura Drive Conto Annuale implementata/verificata.")
+
+
+# 3) FUNZIONI DRIVE ---------------------------------------------------------
+
+ca_drive_files <- function(anno, sottocartella) {
+  dir <- sim_drive_ls_path(
+    file.path(DRIVE_DIR_SOURCE, "Conto_annuale", paste0("CA_", anno), sottocartella),
+    create = FALSE
+  )
+  googledrive::drive_ls(dir)
+}
+
+ca_download_read <- function(file, local_name) {
+  local <- sim_drive_download_to_temp(
+    file,
+    local_name = local_name,
+    overwrite = TRUE
+  )
+  df <- sim_read_any_table(local) %>%
+    janitor::clean_names()
+  unlink(local)
+  df
+}
+
+ca_find_file <- function(anno, sottocartella, pattern) {
+  files <- ca_drive_files(anno, sottocartella)
+  
+  files %>%
+    dplyr::filter(
+      stringr::str_detect(
+        .data$name,
+        stringr::regex(pattern, ignore_case = TRUE)
+      )
+    ) %>%
+    dplyr::arrange(.data$name)
+}
+
+ca_read_dataset <- function(anno, pattern, dataset_nome) {
+  files <- ca_find_file(anno, "Dati", pattern)
+  
+  if (nrow(files) == 0) {
+    warning("Dataset ", dataset_nome, " non trovato per anno ", anno)
+    return(tibble::tibble())
+  }
+  
+  ext <- tools::file_ext(files$name[1])
+  
+  ca_download_read(
+    files[1, ],
+    local_name = paste0(dataset_nome, "_", anno, ".", ext)
+  ) %>%
+    dplyr::mutate(
+      anno = anno,
+      dataset_origine = dataset_nome,
+      file_origine = files$name[1],
+      .before = 1
+    )
+}
+
+# Upload versionato: non sostituisce e non cestina file esistenti.
+# Serve a evitare errori 403 quando l'account non può eliminare file già presenti.
+save_rds_upload_versioned <- function(obj, drive_path, filename) {
+  # dir_drive <- sim_drive_mkdir_path(drive_path)
+  dir_drive <- sim_drive_ls_path(drive_path, create = TRUE)
+  local_file <- file.path(DIR_TEMP, filename)
+  saveRDS(obj, local_file)
+  googledrive::drive_upload(
+    media = local_file,
+    path = dir_drive,
+    name = filename
+  )
+  unlink(local_file)
+}
+
+write_csv_upload_versioned <- function(obj, drive_path, filename) {
+  #dir_drive <- sim_drive_mkdir_path(drive_path)
+  dir_drive <- sim_drive_ls_path(drive_path, create = TRUE)
+  local_file <- file.path(DIR_TEMP, filename)
+  readr::write_csv(obj, local_file)
+  googledrive::drive_upload(
+    media = local_file,
+    path = dir_drive,
+    name = filename
+  )
+  unlink(local_file)
+}
+
+write_json_upload_versioned <- function(obj, drive_path, filename) {
+  dir_drive <- sim_drive_ls_path(drive_path, create = TRUE)
+  local_file <- file.path(DIR_TEMP, filename)
+  
+  jsonlite::write_json(
+    obj,
+    path = local_file,
+    pretty = TRUE,
+    auto_unbox = TRUE,
+    na = "null"
+  )
+  
+  googledrive::drive_upload(
+    media = local_file,
+    path = dir_drive,
+    name = filename
+  )
+  
+  unlink(local_file)
+}
+
+

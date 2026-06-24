@@ -816,14 +816,30 @@ print(log_match_anagrafica_lista_sim)
 
 # 9) Clean 07_TEMP ----------------------------------------------------------
 
-empt_temp <- list.files(
-  path = DIR_TEMP,
-  pattern = "\\.xlsx$|\\.csv$|\\.rds$",
-  full.names = TRUE
-)
-file.remove(empt_temp)
+# empt_temp <- list.files(
+#   path = DIR_TEMP,
+#   pattern = "\\.xlsx$|\\.csv$|\\.rds$",
+#   full.names = TRUE
+# )
+# file.remove(empt_temp)
+# 
+# message("Pulizia cartella temporanea.")
 
-message("Pulizia cartella temporanea.")
+file_temp <- file.path(
+  DIR_TEMP,
+  c(
+    filename_master_rds,
+    filename_master_csv,
+    filename_master_json
+  )
+)
+
+file_da_eliminare <- file_temp[file.exists(file_temp)]
+
+file.remove(file_da_eliminare)
+
+message("Pulizia file temporanei completata:")
+message(" - ", basename(file_da_eliminare))
 
 # 16) CHIUSURA LOG ---------------------------------------------------------------
 

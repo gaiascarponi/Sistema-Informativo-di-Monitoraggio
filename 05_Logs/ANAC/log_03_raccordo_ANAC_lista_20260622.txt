@@ -1,34 +1,0 @@
-G3;--- INIZIO ELABORAZIONE: 2026-06-22 13:20:49.519248 ---
-gG3;Script in esecuzione: 03_raccordo_ANAC_lista
-gThe googledrive package is requesting access to your Google account.
-Enter '1' to start a new auth process or select a pre-authorized account.
-1: Send me to the browser for a new auth process.
-2: scarponigaia@gmail.com
-G3;
-gG3;
-gG3;File downloaded:
-gG3;• 'Lista_raccordo_SIM.xlsx' <id: 1aC1BZG6Y27RhS4VEZeBQudKjvUeaa_r8>
-gG3;Saved locally as:
-gG3;• '07_Temp/Lista_raccordo_SIM.xlsx'
-g-/                                                                                                                                /                                                                                                                                -                                                                                                                                There were 25 warnings (use warnings() to see them)
-G3;File Lista_raccordo_SIM.xlsx caricato correttamente
-gG3;File downloaded:
-gG3;• 'CIG_2023.rds' <id: 1EG4ki7awiok1wUTTuC4hMbvqHotHerOW>
-gG3;Saved locally as:
-gG3;• '07_Temp/CIG_2023.rds'
-gG3;File CIG_2023.rds caricato correttamente
-gG3;Righe caricatere in Lista: 10179
-gG3;Righe caricate in CIG 2023: 655125
-gG3;Matchate: 431765 gare
-gG3;File RDS creato localmente in 07_Temp
-gG3;File trashed:
-gG3;• 'Master.rds' <id: 1jQLH6MXaHtB9Sf_vzf_SOCffMWWD-sh->
-gG3;Local file:
-gG3;• '07_Temp/Master.rds'
-gG3;Uploaded into Drive file:
-gG3;• 'Master.rds' <id: 1OocFuDDJb-jMD8aiifISs1bXSJQ-ywOa>
-gG3;With MIME type:
-gG3;• 'application/x-gzip'
-gG3;File Master.rds caricato correttamente su Drive
-gG3;--- FINE ELABORAZIONE: 2026-06-22 13:21:34.542769 ---
-g

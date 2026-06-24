@@ -1,15 +1,0 @@
-G3;--- INIZIO ELABORAZIONE: 2026-06-22 13:47:00.576909 ---
-gG3;Script in esecuzione: 05_variable_met_ANAC
-gThe googledrive package is requesting access to your Google account.
-Enter '1' to start a new auth process or select a pre-authorized account.
-1: Send me to the browser for a new auth process.
-2: scarponigaia@gmail.com
-G3;Drive collegato correttamente
-gG3;Caricato dataset RDS: CIG_2023
-gwrote 2.49kB in  0s, 803.05MB/swrote 1.00TB in  0s, 836.85TB/s                                                                                                                                G3;Report metadati generati localmente in 02_Metadata/ANAC
-gwrote 2.49kB in  0s, 2.61GB/swrote 1.00TB in  0s, 944.24TB/s                                                                                                                                G3;Report metadati generato con successo in 02_Metadata/PagoPA
-gG3;Upload completato.
-gG3;Pulizia cartella temporanea...
-g[1] TRUE
-G3;--- FINE ELABORAZIONE: 2026-06-22 13:47:27.654311 ---
-g

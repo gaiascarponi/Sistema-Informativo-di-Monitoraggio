@@ -1,50 +1,0 @@
-G3;--- INIZIO ELABORAZIONE: 2026-06-20 20:10:50.648442 ---
-gG3;Script in esecuzione: 02_ANAC_CIG_manipulation
-gThe googledrive package is requesting access to your Google account.
-Enter '1' to start a new auth process or select a pre-authorized account.
-1: Send me to the browser for a new auth process.
-2: scarponigaia@gmail.com
-G3;
-gG3;Scaricamento: cig_json_2023_01.xlsx
-g-/                                                                                                                                                                                   /                                                                                                                                                                                   -                                                                                                                                                                                   G3;Completato: cig_01
-gG3;Scaricamento: cig_json_2023_02.xlsx
-g-\                                                                                                                                                                                   /                                                                                                                                                                                   -|                                                                                                                                                                                   G3;Completato: cig_02
-gG3;Scaricamento: cig_json_2023_03.xlsx
-g-                                                                                                                                                                                   /                                                                                                                                                                                   -\                                                                                                                                                                                   G3;Completato: cig_03
-gG3;Scaricamento: cig_json_2023_04.xlsx
-g-|                                                                                                                                                                                   /                                                                                                                                                                                   -/                                                                                                                                                                                   G3;Completato: cig_04
-gG3;Scaricamento: cig_json_2023_05.xlsx
-g-|                                                                                                                                                                                   /                                                                                                                                                                                   -/                                                                                                                                                                                   G3;Completato: cig_05
-gG3;Scaricamento: cig_json_2023_06.xlsx
-g-/                                                                                                                                                                                   /                                                                                                                                                                                   -                                                                                                                                                                                   G3;Completato: cig_06
-gG3;Scaricamento: cig_json_2023_07.xlsx
-g-                                                                                                                                                                                   /                                                                                                                                                                                   -\                                                                                                                                                                                   G3;Completato: cig_07
-gG3;Scaricamento: cig_json_2023_08.xlsx
-g-\                                                                                                                                                                                   /                                                                                                                                                                                   -|                                                                                                                                                                                   G3;Completato: cig_08
-gG3;Scaricamento: cig_json_2023_09.xlsx
-g-/                                                                                                                                                                                   /                                                                                                                                                                                   -                                                                                                                                                                                   G3;Completato: cig_09
-gG3;Scaricamento: cig_json_2023_10.xlsx
-g-/                                                                                                                                                                                   /                                                                                                                                                                                   -                                                                                                                                                                                   G3;Completato: cig_10
-gG3;Scaricamento: cig_json_2023_11.xlsx
-g-                                                                                                                                                                                   /                                                                                                                                                                                   -\                                                                                                                                                                                   G3;Completato: cig_11
-gG3;Scaricamento: cig_json_2023_12.xlsx
-g-\                                                                                                                                                                                   /                                                                                                                                                                                   -|                                                                                                                                                                                   G3;Completato: cig_12
-gThere were 50 or more warnings (use warnings() to see the first 50)
-Warning messages:
-1: In rm(file_su_drive, folder_id, ricerche, risultati, cartella_cig2023) :
-  object 'ricerche' not found
-2: In rm(file_su_drive, folder_id, ricerche, risultati, cartella_cig2023) :
-  object 'risultati' not found
-3: In rm(file_su_drive, folder_id, ricerche, risultati, cartella_cig2023) :
-  object 'cartella_cig2023' not found
-G3;File trashed:
-gG3;• 'CIG_2023.rds' <id: 152SvWEScO2QaED21N2BwbLqQMxrBErU6>
-gG3;Local file:
-gG3;• '07_Temp/cig_2023.rds'
-gG3;Uploaded into Drive file:
-gG3;• 'CIG_2023.rds' <id: 1EG4ki7awiok1wUTTuC4hMbvqHotHerOW>
-gG3;With MIME type:
-gG3;• 'application/x-gzip'
-gG3;Export completato con successo su Drive
-gG3;--- FINE ELABORAZIONE: 2026-06-20 20:16:06.087292 ---
-g

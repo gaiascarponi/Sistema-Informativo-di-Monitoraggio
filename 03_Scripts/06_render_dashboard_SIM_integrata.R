@@ -1,9 +1,9 @@
-# ============================================================ #
+# ............................................................. #
 # Script: 06_render_dashboard_SIM_integrata.R
 #
 # Avvia una shell SIM unica e, in processi separati, le dashboard
 # Conto annuale e PA Digitale 2026.
-# ============================================================ #
+# ............................................................. #
 
 rm(list = ls())
 
@@ -19,9 +19,7 @@ suppressPackageStartupMessages({
 
 googledrive::drive_auth(scopes = "https://www.googleapis.com/auth/drive")
 
-# --------------------------------------------------------------------------- #
-# PARAMETRI DA CONFIGURARE
-# --------------------------------------------------------------------------- #
+# 1) PARAMETRI DA CONFIGURARE -------------------------------------------------- 
 
 RUN_ID_PADIGITALE <- "20260623_025543"
 
@@ -44,9 +42,8 @@ PATTERN_CONTO_ANNUALE <- "^master_CA_multianno_.*\\.rds$"
 DRIVE_PAD_INDICATORS <- file.path(DRIVE_DIR_INDICATORS_PAD26, RUN_ID_PADIGITALE)
 DRIVE_PAD_METADATA <- file.path(DRIVE_DIR_INDICATORS_MET_PAD26, RUN_ID_PADIGITALE)
 
-# --------------------------------------------------------------------------- #
-# HELPERS
-# --------------------------------------------------------------------------- #
+
+# 2) HELPERS ------------------------------------------------------------------- 
 
 required_files <- c(FILE_HOME, FILE_PADIGITALE, FILE_CONTO_ANNUALE)
 missing_files <- required_files[!file.exists(required_files)]

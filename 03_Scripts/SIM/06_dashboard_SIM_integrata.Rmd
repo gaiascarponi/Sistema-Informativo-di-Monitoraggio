@@ -12,6 +12,13 @@ params:
   url_conto_annuale: "http://127.0.0.1:8011"
   url_padigitale: "http://127.0.0.1:8012"
   url_anac: null
+  id_ente_col: null
+  nome_ente_col: null
+  regione_col: null
+  macro_gruppo_col: null
+  flag_conto_annuale_col: null
+  flag_padigitale_col: null
+  flag_anac_col: null
   anno_nuts: 2024
   risoluzione_nuts: "10"
 ---

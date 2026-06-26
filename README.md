@@ -1,145 +1,104 @@
 # Monitoraggio-PNRR
 
-Analisi esplorativa e dashboard per il dataset **ItaliaSemplice – Dettaglio Procedure**  
-(catalogo delle procedure amministrative e regolatorie).
+Repository pubblica del progetto **Sistema Integrato di Monitoraggio PA (SIM)**.
 
-Questo repository contiene **solo codice e documentazione**.  
-Il dataset viene scaricato manualmente da Microsoft Teams / SharePoint e salvato **localmente** in una cartella `data/` che **non è tracciata da Git**.
+Il codice necessario per eseguire la dashboard si trova principalmente nella cartella `03_Scripts/`.
 
----
+## Prima installazione
 
-## 1. Prerequisiti
+Chi non ha ancora scaricato e configurato il progetto deve seguire:
 
-Per lavorare con questo repository sono necessari:
-
-- Git
-- R (versione ≥ 4.2 consigliata)
-- RStudio (consigliato)
-
-### Nota per macOS
-Su macOS è consigliabile evitare di clonare il repository all’interno di `Documents`, `Desktop` o altre cartelle protette, poiché potrebbero verificarsi problemi di permessi con il Terminal.
-
-**Percorso consigliato:**
-- macOS / Linux: `~/Projects`
-- Windows: `C:\Projects`
-
----
-
-## 2. Clonare il repository in locale
-
-### Opzione A — SSH (consigliata se usi già SSH con GitHub)
-
-```bash
-cd ~/Projects
-git clone git@github.com:gaiascarponi/Monitoraggio-PNRR.git
-cd Monitoraggio-PNRR
+```text
+docs/PRIMA_INSTALLAZIONE_DASHBOARD_SIM.md
 ```
 
-### Opzione B — HTTPS
+La guida spiega come installare R, RStudio e Git, clonare la repository pubblica, installare i pacchetti R e avviare la dashboard per la prima volta.
 
-```bash
-cd ~/Projects
-git clone https://github.com/gaiascarponi/Monitoraggio-PNRR.git
-cd Monitoraggio-PNRR
+## Avvio rapido — solo dopo la prima installazione
+
+Questi passaggi valgono quando la repository è già presente e configurata sul computer.
+
+1. Aprire `Monitoraggio-PNRR.Rproj` con RStudio.
+2. Aggiornare la copia locale con **Git → Pull**.
+3. Nella **Console R** eseguire:
+
+```r
+source("03_Scripts/06_render_dashboard_SIM_integrata.R")
 ```
 
+4. Completare l’eventuale autorizzazione Google.
+5. Attendere l’apertura di:
 
----
-
-## 3. Aprire il progetto R
-
-Questo repository include già il file di progetto RStudio:
-
-```bash
-Monitoraggio-PNRR.Rproj
+```text
+http://127.0.0.1:8010
 ```
 
-È possibile aprirlo:
+## Dati
 
-* facendo doppio clic su Monitoraggio-PNRR.Rproj, oppure
+Gli input elaborati della dashboard sono disponibili in sola visualizzazione:
 
-* in RStudio: **File → Open Project…** e selezionando il file.
+https://drive.google.com/drive/folders/14jMYmLq78M-0LxuaIBAGao16ZhF59xDc?usp=sharing
 
-**⚠️ Non creare un nuovo progetto R in un’altra cartella.**
-La root del progetto deve coincidere con la root del repository, affinché i percorsi relativi funzionino correttamente.
+Le fonti originali, le licenze e le trasformazioni sono documentate in [`DATA_SOURCES.md`](DATA_SOURCES.md).
 
----
+## Documentazione tecnica
 
-## 4. Struttura delle cartelle
+La guida tecnica si trova in:
 
-Struttura attesa (semplificata):
+```text
+03_Scripts/SIM/GUIDA_DASHBOARD_SIM.md
+```
 
-```bash
+## Struttura essenziale
+
+```text
 Monitoraggio-PNRR/
-  Monitoraggio-PNRR.Rproj
-  README.md
-  .gitignore
-  data/                  # dati locali (non tracciati da Git)
-  import_data.R          # script (tracciati)
+├── Monitoraggio-PNRR.Rproj
+├── README.md
+├── DATA_SOURCES.md
+├── docs/
+│   └── PRIMA_INSTALLAZIONE_DASHBOARD_SIM.md
+└── 03_Scripts/
+    ├── 00_config.R
+    ├── 00_drive_helpers.R
+    ├── 00_spatial_helpers.R
+    ├── helper_console_log.R
+    ├── 06_render_dashboard_SIM_integrata.R
+    ├── SIM/
+    │   ├── 06_dashboard_SIM_integrata.Rmd
+    │   └── GUIDA_DASHBOARD_SIM.md
+    ├── Conto_annuale/
+    │   └── 05_dashboard_SIM_ContoAnnuale.Rmd
+    └── PAdigitale2026/
+        └── 05_dashboard_SIM_PADigitale2026.Rmd
 ```
 
-**Informazioni sulla cartella data/**
+## Requisiti
 
-* La cartella data/ deve esistere in locale.
+- R;
+- RStudio Desktop;
+- Git;
+- connessione Internet;
+- browser;
+- pacchetti R indicati nella guida di prima installazione.
 
-* Tutti i file di dati reali devono essere salvati all’interno di data/.
+Un account GitHub non è necessario per scaricare una repository pubblica. Serve solo per collaborare su GitHub.
 
-* I file presenti in data/ sono ignorati da Git per progettazione e non devono mai essere committati.
+## Regole essenziali
 
----
+- Non versionare dataset, log, cache o output generati.
+- Non inserire password, token o credenziali.
+- Non usare **Run Document** sui file `.Rmd` per il normale avvio.
+- Non duplicare i path definiti in `03_Scripts/00_config.R`.
+- Evitare copie `_old`, `_copy` o `_fullscreen`.
+- Controllare sempre che commit e log non contengano dati personali o informazioni riservate.
 
-## 5. Scaricare i dati e salvarli nella cartella corretta
+## Assistenza
 
-1. Scaricare il file CSV da Microsoft Teams / SharePoint utilizzando il link riportato sotto.
+In caso di errore, consultare:
 
-2. Salvare il file nella cartella:
-```bash
-  Monitoraggio-PNRR/data/
+```text
+07_Temp/SIM/Dashboard/<RUN_ID>/logs/
 ```
 
-3. Utilizzare il seguente nome file (consigliato e atteso dagli script):
-```bash
-  ItaliaSemplice_DettaglioProcedure.csv
-```
-
-**Fonte dati (Teams / SharePoint)**
-```bash
-  https://mipaconsorzio.sharepoint.com/:x:/r/sites/Istat-MonitoraggioriformePA/Shared%20Documents/Istat%20-%20Monitoraggio%20riforma%20PA/ItaliaSemplice_DettaglioProcedure.csv?d=wdb595566661646d28689b2dc1898a942&csf=1&web=1&e=yuClnc
-```
-
----
-
-## 6. Eseguire l’importazione / analisi
-
-Dopo aver posizionato il file dei dati nella cartella data/, aprire il progetto R ed eseguire lo script di importazione, ad esempio:
-```bash
-  source("import_data.R")
-```
-Se uno script restituisce un errore perché il file di dati non viene trovato, verificare che:
-
-* il file esista effettivamente nella cartella data/
-
-* il nome del file corrisponda esattamente (attenzione a maiuscole/minuscole)
-
-* il progetto R (.Rproj) sia aperto, in modo che la working directory sia corretta
-
----
-
-## 7. Regole di collaborazione (importante)
-
-* Non eseguire commit di file di dati (CSV, XLSX, ecc.).
-
-* Non eseguire commit di credenziali o segreti (ad es. .Renviron).
-
-* Eseguire commit solo di codice, documentazione e template di configurazione.
-
-Workflow suggerito:
-
-1. Aggiornare il repository locale: **git pull**
-
-2. Apportare le modifiche in locale
-
-3. Committare solo codice o documentazione rilevante
-
-4. Effettuare il push sul repository (oppure aprire una Pull Request, se il team utilizza le PR)
-
+e la guida tecnica in `03_Scripts/SIM/GUIDA_DASHBOARD_SIM.md`.

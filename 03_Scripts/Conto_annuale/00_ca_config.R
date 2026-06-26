@@ -147,4 +147,56 @@ write_json_upload_versioned <- function(obj, drive_path, filename) {
   unlink(local_file)
 }
 
+# download RDS
+
+drive_latest_file <- function(drive_path, pattern) {
+  
+  dir_drive <- sim_drive_ls_path(
+    drive_path,
+    create = FALSE
+  )
+  
+  file <- googledrive::drive_ls(dir_drive) %>%
+    dplyr::filter(
+      stringr::str_detect(
+        .data$name,
+        stringr::regex(pattern, ignore_case = TRUE)
+      )
+    ) %>%
+    dplyr::arrange(dplyr::desc(.data$name)) %>%
+    dplyr::slice(1)
+  
+  if (nrow(file) == 0) {
+    stop(
+      "Nessun file trovato in ",
+      drive_path,
+      " con pattern: ",
+      pattern
+    )
+  }
+  
+  file
+}
+
+read_latest_rds <- function(drive_path, pattern) {
+  
+  file <- drive_latest_file(
+    drive_path = drive_path,
+    pattern = pattern
+  )
+  
+  local_file <- sim_drive_download_to_temp(
+    file,
+    local_name = file$name[1],
+    overwrite = TRUE
+  )
+  
+  obj <- readRDS(local_file)
+  
+  unlink(local_file)
+  
+  message("File letto da Drive: ", drive_path, "/", file$name[1])
+  
+  obj
+}
 

@@ -32,6 +32,7 @@ DRIVE_DIR_LISTS <- file.path(DRIVE_DIR_DATASET, "Lists")
 # Metadati
 DRIVE_DIR_SOURCE_MET <- file.path(DRIVE_DIR_METADATA, "Source_met")
 DRIVE_DIR_INDICATORS_MET <- file.path(DRIVE_DIR_METADATA, "Indicators_met")
+DRIVE_DIR_CLASSIFICATION_MET <- file.path(DRIVE_DIR_METADATA, "Classification_met")
 
 # Alias temporanei per compatibilità con script meno recenti.
 # Rimuoverli quando tutti gli script useranno i nomi canonici sopra.
@@ -73,6 +74,12 @@ DRIVE_DIR_SOURCE_MET_ANAC <- file.path(DRIVE_DIR_SOURCE_MET, "ANAC")
 DRIVE_DIR_INDICATORS_MET_ANAC <- file.path(DRIVE_DIR_INDICATORS_MET, "ANAC")
 DRIVE_DIR_OUTPUT_ANAC <- file.path(DRIVE_DIR_OUTPUT, "ANAC")
 DRIVE_DIR_LOGS_ANAC <- file.path(DRIVE_DIR_LOGS, "ANAC")
+
+#PagoPA
+DRIVE_DIR_INDICATORS_PAGOPA <- file.path(DRIVE_DIR_INDICATORS, "PagoPA")
+DRIVE_DIR_CLASSIFICATION_MET_PAGOPA <- file.path(DRIVE_DIR_INDICATORS_MET, "PagoPA")
+
+
 
 # Master list SIM
 DRIVE_FILE_LISTA_RACCORDO_SIM_XLSX <- file.path(

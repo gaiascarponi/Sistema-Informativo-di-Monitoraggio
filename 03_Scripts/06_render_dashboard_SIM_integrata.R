@@ -26,10 +26,12 @@ RUN_ID_PADIGITALE <- "20260623_025543"
 FILE_HOME <- file.path("03_Scripts", "SIM", "06_dashboard_SIM_integrata.Rmd")
 FILE_PADIGITALE <- file.path("03_Scripts", "PAdigitale2026", "05_dashboard_SIM_PADigitale2026.Rmd")
 FILE_CONTO_ANNUALE <- file.path("03_Scripts", "Conto_annuale", "05_dashboard_SIM_ContoAnnuale.Rmd")
+FILE_INDICATORS_PAGOPA <- file.path("03_Scripts", "PagoPA", "05_dashboard_SIM_PagoPA.Rmd")
 
 PORT_HOME <- 8010L
 PORT_CONTO_ANNUALE <- 8011L
 PORT_PADIGITALE <- 8012L
+PORT_INDICATORS_PAGOPA <- 8013L
 
 # Lista di perimetro comune. Il percorso stabile è definito in 00_config.R.
 DRIVE_MASTER_PA_FILE <- DRIVE_FILE_LISTA_RACCORDO_SIM
@@ -45,7 +47,7 @@ DRIVE_PAD_METADATA <- file.path(DRIVE_DIR_INDICATORS_MET_PAD26, RUN_ID_PADIGITAL
 
 # 2) HELPERS ------------------------------------------------------------------- 
 
-required_files <- c(FILE_HOME, FILE_PADIGITALE, FILE_CONTO_ANNUALE)
+required_files <- c(FILE_HOME, FILE_PADIGITALE, FILE_CONTO_ANNUALE, FILE_INDICATORS_PAGOPA)
 missing_files <- required_files[!file.exists(required_files)]
 if (length(missing_files) > 0L) stop("File Rmd mancanti: ", paste(missing_files, collapse = ", "))
 
@@ -158,7 +160,15 @@ children <- list()
 tryCatch({
   master_pa <- download_drive_file(DRIVE_MASTER_PA_FILE)
   master_ca <- download_latest(DRIVE_CONTO_ANNUALE, PATTERN_CONTO_ANNUALE)
-
+  
+  path_json_indicators <- download_exact(DRIVE_DIR_INDICATORS_PAGOPA, "INDICATORS_PAGOPA.json")
+  path_fil_reg <- download_exact(DRIVE_DIR_CLASSIFICATION_MET, "fil_reg.rds")
+  
+  my_indicators_params <- list(
+    file_indicators = path_json_indicators,
+    file_regioni = path_fil_reg
+  )
+  
   pad_params <- list(
     file_fact_dashboard = download_exact(DRIVE_PAD_INDICATORS, "FACT_PADIGITALE2026_DASHBOARD.json"),
     file_dim_enti = download_exact(DRIVE_PAD_INDICATORS, "DIM_ENTI_PADIGITALE2026.json"),
@@ -174,6 +184,7 @@ tryCatch({
 
   children$conto_annuale <- run_rmd_child(file = FILE_CONTO_ANNUALE, port = PORT_CONTO_ANNUALE, params = ca_params, app_name = "conto_annuale")
   children$padigitale <- run_rmd_child(file = FILE_PADIGITALE, port = PORT_PADIGITALE, params = pad_params, app_name = "padigitale")
+  children$indicators_pagopa <- run_rmd_child( file = FILE_INDICATORS_PAGOPA, port = PORT_INDICATORS_PAGOPA, params = my_indicators_params, app_name = "indicators_pagopa")
   
   Sys.sleep(8)
   
@@ -233,6 +244,7 @@ tryCatch({
           "http://127.0.0.1:%d",
           PORT_PADIGITALE
         ),
+        url_indicators_pagopa = sprintf("http://127.0.0.1:%d", PORT_INDICATORS_PAGOPA),
         
         url_anac = NULL,
         

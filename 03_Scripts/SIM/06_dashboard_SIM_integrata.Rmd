@@ -11,6 +11,7 @@ params:
   file_master_pa: null
   url_conto_annuale: "http://127.0.0.1:8011"
   url_padigitale: "http://127.0.0.1:8012"
+  url_indicators_pagopa: null 
   url_anac: null
   id_ente_col: null
   nome_ente_col: null
@@ -19,6 +20,7 @@ params:
   flag_conto_annuale_col: null
   flag_padigitale_col: null
   flag_anac_col: null
+
   anno_nuts: 2024
   risoluzione_nuts: "10"
 ---
@@ -554,6 +556,14 @@ Row
 <p class="sim-muted">La dashboard esistente resta un'applicazione autonoma.</p>
 </div>
 
+### PagoPA
+
+<div class="sim-card">
+<h3>PagoPA</h3>
+<p>Transazioni, categorie di enti e fasce di importo dei pagamenti.</p>
+<p class="sim-muted">La dashboard esistente resta un'applicazione autonoma.</p>
+</div>
+
 ### ANAC
 
 <div class="sim-card">
@@ -580,6 +590,16 @@ Row {data-height=900}
 
 ```{r, results='asis'}
 iframe_app(params$url_padigitale, "PA Digitale 2026")
+```
+
+PagoPA {data-icon="fa-euro-sign"}
+=======================================================================
+
+Row {data-height=900}
+-----------------------------------------------------------------------
+
+```{r, results='asis'}
+iframe_app(params$url_indicators_pagopa, "PagoPA")
 ```
 
 ANAC {data-icon="fa-file-contract"}

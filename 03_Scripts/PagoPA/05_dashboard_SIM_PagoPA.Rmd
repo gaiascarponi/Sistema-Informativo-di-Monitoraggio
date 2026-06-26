@@ -1,0 +1,444 @@
+---
+title: "Sistema Integrato di Monitoraggio (SIM) — PagoPA, IO & SEND"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    theme: cosmo
+    self_contained: false
+runtime: shiny
+params:
+  file_indicators: ""
+  file_regioni: ""
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+suppressPackageStartupMessages({
+  library(shiny)
+  library(flexdashboard)
+  library(jsonlite)
+  library(dplyr)
+  library(plotly)
+  library(tidyr)
+  library(leaflet)
+  library(sf)
+  library(ggplot2)
+})
+
+# --- CARICAMENTO DATI DAI PARAMETRI SIM ---
+df <- fromJSON(params$file_indicators) %>%
+  filter(fil_val != "Complessivo") %>%
+  mutate(ind_val = as.numeric(ind_val))
+
+mappatura_nomi <- readRDS(params$file_regioni) %>%
+  select(codice_reg, reg)
+
+# Confini Regioni
+geojson_url <- "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_regions.geojson"
+regioni_shape <- read_sf(geojson_url) %>%
+  mutate(reg_code = sprintf("%02d", as.numeric(reg_istat_code_num)))
+
+# Calcolo etichette
+anni_presenti <- as.numeric(df$fil_val[df$fil == "fil_anno"])
+label_periodo <- paste0(" (", min(anni_presenti, na.rm = TRUE), "-", max(anni_presenti, na.rm = TRUE), ")")
+
+# Mappature Dizionari
+ind_pagoPA_categorie <- c("ind8"="ACI","ind9"="Comuni","ind10"="Consorzi universitari","ind11"="Enti comunali","ind12"="Enti provinciali","ind13"="Enti regionali","ind14"="Ordini e collegi","ind15"="Province","ind16"="PA Centrali","ind17"="Regioni","ind18"="Ricerca","ind19"="Salute centrale","ind20"="Salute locale","ind21"="Salute regionale","ind22"="Salute servizi","ind23"="Scuola","ind24"="Università","ind25"="Altri enti territoriali","ind26"="Utility")
+ind_fasce_nomi <- c("ind31"="ACI","ind32"="Comuni","ind33"="Consorzi universitari","ind34"="Enti comunali","ind35"="Enti provinciali","ind36"="Enti regionali","ind37"="Ordini e collegi","ind38"="Province","ind39"="PA Centrali","ind40"="Regioni","ind41"="Ricerca","ind42"="Salute centrale","ind43"="Salute locale","ind44"="Salute regionale","ind45"="Salute servizi","ind46"="Scuola","ind47"="Università","ind48"="Altri enti territoriali","ind49"="Utility","ind50"="Enti donazioni")
+ind_regionali_map <- c("ind1"="Enti IO (Comuni)","ind2"="Servizi IO (Comuni)","ind3"="Enti IO (Istruzione)","ind4"="Servizi IO (Istruzione)","ind5"="Comuni attivi su SEND (n.)","ind6"="Comuni attivi su SEND (%)")
+```
+
+Overview Nazionale
+=======================================================================
+
+Sidebar {.sidebar}
+-----------------------------------------------------------------------
+
+### Filtro Overview
+
+```{r}
+selectInput("anno_ov", "Seleziona Anno:", choices = unique(df$fil_val[df$fil == "fil_anno"]))
+```
+
+Row
+-----------------------------------------------------------------------
+
+### Messaggi IO Totali`r label_periodo` {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+    format(sum(df$ind_val[df$ind == "ind7"], na.rm = TRUE), big.mark = "."),
+    icon = "fa-database",
+    color = "#6c757d"
+  )
+})
+```
+
+### Notifiche SEND Totali`r label_periodo` {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+    format(sum(df$ind_val[df$ind == "ind29"], na.rm = TRUE), big.mark = "."),
+    icon = "fa-database",
+    color = "#6c757d"
+  )
+})
+```
+
+### Transazioni pagoPA Totali`r label_periodo` {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+    format(sum(df$ind_val[df$ind %in% paste0("ind", 8:26)], na.rm = TRUE), big.mark = "."),
+    icon = "fa-database",
+    color = "#6c757d"
+  )
+})
+```
+
+Row
+-----------------------------------------------------------------------
+
+### Messaggi IO {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+    format(sum(df$ind_val[df$ind == "ind7" & df$fil_val == input$anno_ov], na.rm = TRUE), big.mark = "."),
+    caption = paste0("Anno ", input$anno_ov),
+    icon = "fa-envelope",
+    color = "purple"
+  )
+})
+```
+
+### Transazioni pagoPA {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+    format(sum(df$ind_val[df$ind %in% paste0("ind", 8:26) & df$fil_val == input$anno_ov], na.rm = TRUE), big.mark = "."),
+    caption = paste0("Anno ", input$anno_ov),
+    icon = "fa-euro-sign",
+    color = "success"
+  )
+})
+```
+
+### Notifiche SEND {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+    format(sum(df$ind_val[df$ind == "ind29" & df$fil_val == input$anno_ov], na.rm = TRUE), big.mark = "."),
+    caption = paste0("Anno ", input$anno_ov),
+    icon = "fa-paper-plane",
+    color = "orange"
+  )
+})
+```
+
+Row {data-height=550}
+-----------------------------------------------------------------------
+
+### Top 5 Categorie pagoPA
+
+```{r}
+renderPlotly({
+  p_df <- df %>%
+    filter(ind %in% paste0("ind", 8:26), fil_val == input$anno_ov) %>%
+    group_by(ind) %>%
+    summarise(tot = sum(ind_val, na.rm = TRUE)) %>%
+    mutate(nome = ind_pagoPA_categorie[ind]) %>%
+    arrange(desc(tot)) %>%
+    head(5)
+
+  p <- ggplot(p_df, aes(x = reorder(nome, tot), y = tot)) +
+    geom_col(fill = "#198754") +
+    coord_flip() +
+    theme_minimal() +
+    labs(x = NULL, y = NULL)
+
+  ggplotly(p)
+})
+```
+
+### Trend Mensile Messaggi IO
+
+```{r}
+renderPlotly({
+  t_df <- df %>% filter(ind == "ind7", fil_val == input$anno_ov) %>% arrange(sub_fil_val)
+
+  p <- ggplot(t_df, aes(x = sub_fil_val, y = ind_val, group = 1)) +
+    geom_line(color = "#6f42c1", linewidth = 1) +
+    theme_minimal() +
+    labs(x = "Mese", y = NULL)
+
+  ggplotly(p)
+})
+```
+
+Distribuzione Regionale IO
+=======================================================================
+
+Sidebar {.sidebar}
+-----------------------------------------------------------------------
+
+### Parametri Regionali
+
+```{r}
+selectInput(
+  "sel_ind_reg", "Scegli Indicatore:",
+  choices = setNames(names(ind_regionali_map), ind_regionali_map)
+)
+```
+
+Row {data-height=700}
+-----------------------------------------------------------------------
+
+### Mappa Geografica
+
+```{r}
+leafletOutput("mappa_regioni", height = "600px")
+
+output$mappa_regioni <- renderLeaflet({
+  dati_m <- df %>% filter(fil == "fil_reg", ind == input$sel_ind_reg)
+  mf <- regioni_shape %>% left_join(dati_m, by = c("reg_code" = "fil_val"))
+  pal <- colorNumeric("YlGnBu", mf$ind_val)
+
+  leaflet(mf) %>%
+    addProviderTiles(providers$CartoDB.Positron) %>%
+    addPolygons(
+      fillColor = ~pal(ind_val), weight = 1, color = "white", fillOpacity = 0.8,
+      label = ~paste0(reg_name, ": ", format(ind_val, big.mark = "."))
+    )
+})
+```
+
+### Classifica Regioni
+
+```{r}
+renderPlotly({
+  reg_df <- df %>%
+    filter(fil == "fil_reg", ind == input$sel_ind_reg) %>%
+    left_join(mappatura_nomi, by = c("fil_val" = "codice_reg")) %>%
+    arrange(desc(ind_val))
+
+  p <- ggplot(reg_df, aes(x = reorder(reg, ind_val), y = ind_val)) +
+    geom_col(fill = "#007bff") +
+    coord_flip() +
+    theme_minimal() +
+    theme(axis.text.y = element_text(size = 8))
+
+  ggplotly(p) %>% layout(margin = list(l = 100))
+})
+```
+
+Analisi pagoPA (Enti & Fasce)
+=======================================================================
+
+Sidebar {.sidebar}
+-----------------------------------------------------------------------
+
+### Filtri pagoPA
+
+```{r}
+selectInput("anno_pago", "1. Seleziona Anno:", choices = unique(df$fil_val[df$fil == "fil_anno"]))
+selectInput("mese_pago", "2. Seleziona Mese (per Enti):", choices = sprintf("%02d", 1:12))
+hr()
+selectInput(
+  "cat_fasce", "3. Categoria per Fasce d'Importo:",
+  choices = setNames(names(ind_fasce_nomi), ind_fasce_nomi)
+)
+```
+
+Row {data-height=500}
+-----------------------------------------------------------------------
+
+### A. Transazioni per Categoria di Ente (Mensile)
+
+```{r}
+renderPlotly({
+  c_df <- df %>%
+    filter(fil == "fil_anno", fil_val == input$anno_pago, sub_fil_val == input$mese_pago, ind %in% paste0("ind", 8:26)) %>%
+    mutate(nome = ind_pagoPA_categorie[ind]) %>%
+    arrange(desc(ind_val))
+
+  if (nrow(c_df) == 0) return(NULL)
+
+  p <- ggplot(c_df, aes(x = reorder(nome, ind_val), y = ind_val)) +
+    geom_col(fill = "#28a745") +
+    coord_flip() +
+    theme_minimal() +
+    labs(x = NULL, y = "N. Transazioni")
+
+  ggplotly(p) %>% layout(margin = list(l = 150))
+})
+```
+
+Row {data-height=500}
+-----------------------------------------------------------------------
+
+### B. Fasce d'Importo per Categoria
+
+```{r}
+renderPlotly({
+  f_df <- df %>% filter(fil == "fil_anno", fil_val == input$anno_pago, sub_fil == "fil_fascia", ind == input$cat_fasce)
+
+  if (nrow(f_df) == 0) return(NULL)
+
+  titolo <- paste("Fasce d'Importo per:", ind_fasce_nomi[input$cat_fasce], "- Anno", input$anno_pago)
+
+  p <- ggplot(f_df, aes(x = sub_fil_val, y = ind_val)) +
+    geom_col(fill = "#198754") +
+    theme_minimal() +
+    labs(x = "Fascia (€)", y = "N. Transazioni", title = titolo) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+  ggplotly(p)
+})
+```
+
+Messaggi IO
+=======================================================================
+
+Sidebar {.sidebar}
+-----------------------------------------------------------------------
+
+### Filtri Messaggi IO
+
+```{r}
+selectInput("anno_io", "Anno:", choices = unique(df$fil_val[df$fil == "fil_anno"]))
+selectInput("mese_io", "Mese:", choices = sprintf("%02d", 1:12))
+```
+
+Row
+-----------------------------------------------------------------------
+
+### Messaggi nel mese selezionato {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+    format(sum(df$ind_val[df$ind == "ind7" & df$fil_val == input$anno_io & df$sub_fil_val == input$mese_io], na.rm = TRUE), big.mark = "."),
+    icon = "fa-comment-dots",
+    color = "purple"
+  )
+})
+```
+
+Row {data-height=600}
+-----------------------------------------------------------------------
+
+### Andamento messaggi nell'anno
+
+```{r}
+renderPlotly({
+  i_df <- df %>% filter(ind == "ind7", fil_val == input$anno_io) %>% arrange(sub_fil_val)
+
+  p <- ggplot(i_df, aes(x = sub_fil_val, y = ind_val, group = 1)) +
+    geom_area(fill = "#6f42c1", alpha = 0.3) +
+    geom_line(color = "#6f42c1") +
+    theme_minimal()
+
+  ggplotly(p)
+})
+```
+
+Notifiche SEND
+=======================================================================
+
+Sidebar {.sidebar}
+-----------------------------------------------------------------------
+
+### Filtri SEND
+
+```{r}
+selectInput("anno_send", "Anno:", choices = unique(df$fil_val[df$fil == "fil_anno"]))
+selectInput("mese_send", "Mese:", choices = sprintf("%02d", 1:12))
+```
+
+Row
+-----------------------------------------------------------------------
+
+### Analogiche {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+    format(sum(df$ind_val[df$ind == "ind27" & df$fil_val == input$anno_send & df$sub_fil_val == input$mese_send], na.rm = TRUE), big.mark = "."),
+    color = "#6c757d"
+  )
+})
+```
+
+### Digitali {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+    format(sum(df$ind_val[df$ind == "ind28" & df$fil_val == input$anno_send & df$sub_fil_val == input$mese_send], na.rm = TRUE), big.mark = "."),
+    color = "info"
+  )
+})
+```
+
+### Totale {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(
+    format(sum(df$ind_val[df$ind == "ind29" & df$fil_val == input$anno_send & df$sub_fil_val == input$mese_send], na.rm = TRUE), big.mark = "."),
+    color = "orange"
+  )
+})
+```
+
+Row {data-height=400}
+-----------------------------------------------------------------------
+
+### Ripartizione Mensile
+
+```{r}
+renderPlotly({
+  comp <- data.frame(
+    T = c("Analogiche", "Digitali"),
+    V = c(
+      sum(df$ind_val[df$ind == "ind27" & df$fil_val == input$anno_send & df$sub_fil_val == input$mese_send], na.rm = TRUE),
+      sum(df$ind_val[df$ind == "ind28" & df$fil_val == input$anno_send & df$sub_fil_val == input$mese_send], na.rm = TRUE)
+    )
+  )
+
+  p <- ggplot(comp, aes(x = T, y = V, fill = T)) +
+    geom_col() +
+    theme_minimal() +
+    theme(legend.position = "none") +
+    labs(x = NULL, y = NULL)
+
+  ggplotly(p)
+})
+```
+
+Row {data-height=500}
+-----------------------------------------------------------------------
+
+### Distribuzione per Ambito (Dato Complessivo)
+
+```{r}
+renderPlotly({
+  a_df <- df %>% filter(ind == "ind30", fil == "fil_ambito") %>% arrange(desc(ind_val))
+
+  p <- ggplot(a_df, aes(x = reorder(fil_val, ind_val), y = ind_val)) +
+    geom_col(fill = "#fd7e14") +
+    coord_flip() +
+    theme_minimal() +
+    labs(x = NULL, y = NULL)
+
+  ggplotly(p) %>% layout(margin = list(l = 150))
+})
+```

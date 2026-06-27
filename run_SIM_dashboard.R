@@ -8,6 +8,14 @@ cat(" Sistema Informativo di Monitoraggio (SIM)\n")
 cat(" Piattaforma di consultazione\n")
 cat("============================================================\n\n")
 
+# Crea automaticamente la cartella temporanea se non esiste
+if (!dir.exists("07_Temp")) {
+  dir.create("07_Temp", recursive = TRUE)
+  cat("✓ Creata cartella temporanea 07_Temp\n\n")
+} else {
+  cat("✓ Cartella temporanea 07_Temp trovata\n\n")
+}
+
 flush.console()
 
 args <- commandArgs(trailingOnly = FALSE)

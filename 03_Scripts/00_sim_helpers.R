@@ -224,13 +224,3 @@ sim_leggi_lista_mpa <- function(pattern = "MPA") {
     )
 }
 
-# # 6) CA
-# 
-# ca_drive_files <- function(anno, sottocartella) {
-#   dir <- sim_drive_ls_path(
-#     file.path(DRIVE_DIR_SOURCE, "Conto_annuale", paste0("CA_", anno), sottocartella),
-#     create = FALSE
-#   )
-#   googledrive::drive_ls(dir)
-# }
-

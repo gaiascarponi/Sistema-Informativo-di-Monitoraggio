@@ -66,10 +66,60 @@ drive_ensure_folder <- function(path_rel, root_id = DRIVE_ROOT_ID) {
   current
 }
 
+# drive_upload_or_update <- function(local_path, drive_folder_rel, drive_name = basename(local_path)) {
+#   
+#   if (!file.exists(local_path)) {
+#     stop("File locale non trovato: ", local_path)
+#   }
+#   
+#   folder <- drive_ensure_folder(drive_folder_rel)
+#   
+#   existing <- googledrive::drive_find(
+#     pattern = paste0("^", escape_regex(drive_name), "$"),
+#     q = paste0("'", folder$id, "' in parents"),
+#     n_max = 10
+#   )
+#   
+#   if (nrow(existing) == 0) {
+#     
+#     googledrive::drive_upload(
+#       media = local_path,
+#       path = folder,
+#       name = drive_name,
+#       overwrite = FALSE
+#     )
+#     
+#     message("Caricato su Drive: ", drive_folder_rel, "/", drive_name)
+#     
+#   } else if (nrow(existing) == 1) {
+#     
+#     googledrive::drive_update(
+#       file = existing,
+#       media = local_path
+#     )
+#     
+#     message("Aggiornato su Drive: ", drive_folder_rel, "/", drive_name)
+#     
+#   } else {
+#     stop("File duplicato su Drive: ", drive_folder_rel, "/", drive_name)
+#   }
+# }
+
 drive_upload_or_update <- function(local_path, drive_folder_rel, drive_name = basename(local_path)) {
   
   if (!file.exists(local_path)) {
     stop("File locale non trovato: ", local_path)
+  }
+  
+  if (
+    missing(drive_folder_rel) ||
+    is.null(drive_folder_rel) ||
+    length(drive_folder_rel) == 0 ||
+    is.na(drive_folder_rel) ||
+    drive_folder_rel == "" ||
+    !stringr::str_detect(drive_folder_rel, "^(01_Dataset|02_Metadata|03_Scripts|04_Output|05_Logs|06_Docs|07_Temp)/")
+  ) {
+    stop("ERRORE: drive_folder_rel non valido: ", drive_folder_rel)
   }
   
   folder <- drive_ensure_folder(drive_folder_rel)
@@ -81,29 +131,26 @@ drive_upload_or_update <- function(local_path, drive_folder_rel, drive_name = ba
   )
   
   if (nrow(existing) == 0) {
-    
     googledrive::drive_upload(
       media = local_path,
       path = folder,
       name = drive_name,
       overwrite = FALSE
     )
-    
     message("Caricato su Drive: ", drive_folder_rel, "/", drive_name)
     
   } else if (nrow(existing) == 1) {
-    
     googledrive::drive_update(
       file = existing,
       media = local_path
     )
-    
     message("Aggiornato su Drive: ", drive_folder_rel, "/", drive_name)
     
   } else {
     stop("File duplicato su Drive: ", drive_folder_rel, "/", drive_name)
   }
 }
+
 
 drive_download_from_path <- function(drive_file_rel, local_path, overwrite = TRUE) {
   

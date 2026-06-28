@@ -1,3 +1,4 @@
+rm(list = ls())
 ################################################################################
 #                                 IMPORT
 ################################################################################
@@ -24,8 +25,8 @@ data_oggi <- format(Sys.time(), "%Y%m%d")
 log_filename <- paste0("log_", nome_script, "_", data_oggi, ".txt")
 
 #Definisco il percorso locale 
-if (!dir.exists("05_Logs/PagoPA")) dir.create("05_Log/PagoPA", recursive = TRUE)
-log_path <- file.path("05_Logs/PagoPA", log_filename)
+if (!dir.exists("07_Temp/PagoPA")) dir.create("07_Temp/PagoPA", recursive = TRUE)
+log_path <- file.path("07_Temp/PagoPA", log_filename)
 #attivazione log
 con <- file(log_path, open = "wt")
 sink(con, type = "output")
@@ -365,3 +366,4 @@ drive_upload(
   name = log_filename
 )
 
+rm(list = ls())

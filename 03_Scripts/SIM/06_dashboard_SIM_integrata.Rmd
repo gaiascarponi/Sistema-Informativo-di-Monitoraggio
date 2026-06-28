@@ -567,9 +567,9 @@ Row
 ### ANAC
 
 <div class="sim-card">
-<h3>ANAC</h3>
-<p>Sezione predisposta per contratti, affidamenti e indicatori sugli enti.</p>
-<p class="sim-muted">Sarà attivata quando saranno disponibili fact table e metadati.</p>
+<h3>ANAC — Monitoraggio Appalti</h3>
+<p>Gare, aggiudicazioni, importi, distribuzione regionale e confronto per forma giuridica e settore CPV.</p>
+<p class="sim-muted">Apri la sezione dedicata dalla barra di navigazione.</p>
 </div>
 
 Conto annuale {data-icon="fa-users"}

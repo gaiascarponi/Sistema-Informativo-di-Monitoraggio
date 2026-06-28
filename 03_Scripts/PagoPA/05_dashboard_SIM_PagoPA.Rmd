@@ -1,5 +1,5 @@
 ---
-title: "Sistema Integrato di Monitoraggio (SIM) — PagoPA, IO & SEND"
+title: "PagoPA, IO & SEND"
 output:
   flexdashboard::flex_dashboard:
     orientation: rows
@@ -25,6 +25,7 @@ suppressPackageStartupMessages({
   library(leaflet)
   library(sf)
   library(ggplot2)
+  library(DT)
 })
 
 # --- CARICAMENTO DATI DAI PARAMETRI SIM ---
@@ -72,7 +73,7 @@ renderValueBox({
   valueBox(
     format(sum(df$ind_val[df$ind == "ind7"], na.rm = TRUE), big.mark = "."),
     icon = "fa-database",
-    color = "#6c757d"
+    color = "info"
   )
 })
 ```
@@ -84,7 +85,7 @@ renderValueBox({
   valueBox(
     format(sum(df$ind_val[df$ind == "ind29"], na.rm = TRUE), big.mark = "."),
     icon = "fa-database",
-    color = "#6c757d"
+    color = "warning"
   )
 })
 ```
@@ -96,7 +97,7 @@ renderValueBox({
   valueBox(
     format(sum(df$ind_val[df$ind %in% paste0("ind", 8:26)], na.rm = TRUE), big.mark = "."),
     icon = "fa-database",
-    color = "#6c757d"
+    color = "success"
   )
 })
 ```
@@ -112,7 +113,7 @@ renderValueBox({
     format(sum(df$ind_val[df$ind == "ind7" & df$fil_val == input$anno_ov], na.rm = TRUE), big.mark = "."),
     caption = paste0("Anno ", input$anno_ov),
     icon = "fa-envelope",
-    color = "purple"
+    color = "info"
   )
 })
 ```
@@ -138,7 +139,7 @@ renderValueBox({
     format(sum(df$ind_val[df$ind == "ind29" & df$fil_val == input$anno_ov], na.rm = TRUE), big.mark = "."),
     caption = paste0("Anno ", input$anno_ov),
     icon = "fa-paper-plane",
-    color = "orange"
+    color = "warning"
   )
 })
 ```
@@ -159,7 +160,7 @@ renderPlotly({
     head(5)
 
   p <- ggplot(p_df, aes(x = reorder(nome, tot), y = tot)) +
-    geom_col(fill = "#198754") +
+    geom_col(fill = "#a3cfbb") +
     coord_flip() +
     theme_minimal() +
     labs(x = NULL, y = NULL)
@@ -175,11 +176,128 @@ renderPlotly({
   t_df <- df %>% filter(ind == "ind7", fil_val == input$anno_ov) %>% arrange(sub_fil_val)
 
   p <- ggplot(t_df, aes(x = sub_fil_val, y = ind_val, group = 1)) +
-    geom_line(color = "#6f42c1", linewidth = 1) +
+    geom_line(color = "#b5a4d4", linewidth = 1) +
     theme_minimal() +
     labs(x = "Mese", y = NULL)
 
   ggplotly(p)
+})
+```
+
+Riepilogo {data-icon="fa-table"}
+=======================================================================
+
+Sidebar {.sidebar}
+-----------------------------------------------------------------------
+
+### Filtro
+
+```{r}
+# Riusa lo stesso input$anno_ov dell'Overview — nessun nuovo widget necessario.
+# La sidebar è vuota ma mantenuta per coerenza visiva con le altre schede.
+helpText("Il filtro Anno è condiviso con l'Overview Nazionale.")
+```
+
+Row
+-----------------------------------------------------------------------
+
+### Distribuzione Regionale IO — riepilogo per indicatore
+
+```{r}
+renderDT({
+  tab <- df %>%
+    filter(fil == "fil_reg", ind %in% names(ind_regionali_map)) %>%
+    left_join(mappatura_nomi, by = c("fil_val" = "codice_reg")) %>%
+    mutate(indicatore = ind_regionali_map[ind]) %>%
+    select(Regione = reg, Indicatore = indicatore, Valore = ind_val) %>%
+    filter(!is.na(Regione)) %>%
+    pivot_wider(names_from = Indicatore, values_from = Valore) %>%
+    arrange(Regione)
+
+  datatable(
+    tab,
+    rownames  = FALSE,
+    filter    = "top",
+    options   = list(pageLength = 21, scrollX = TRUE)
+  ) %>%
+    formatRound(
+      columns = setdiff(names(tab), "Regione"),
+      digits  = 0
+    )
+})
+```
+
+Row
+-----------------------------------------------------------------------
+
+### Analisi pagoPA — Transazioni per Categoria di Ente (anno selezionato)
+
+```{r}
+renderDT({
+  tab <- df %>%
+    filter(fil == "fil_anno", fil_val == input$anno_ov,
+           ind %in% names(ind_pagoPA_categorie)) %>%
+    group_by(ind) %>%
+    summarise(Transazioni = sum(ind_val, na.rm = TRUE), .groups = "drop") %>%
+    mutate(`Categoria Ente` = ind_pagoPA_categorie[ind]) %>%
+    select(`Categoria Ente`, Transazioni) %>%
+    arrange(desc(Transazioni))
+
+  datatable(
+    tab,
+    rownames = FALSE,
+    filter   = "top",
+    options  = list(pageLength = 19, order = list(list(1, "desc")))
+  ) %>%
+    formatRound("Transazioni", digits = 0)
+})
+```
+
+Row
+-----------------------------------------------------------------------
+
+### Messaggi IO — Andamento mensile (anno selezionato)
+
+```{r}
+renderDT({
+  tab <- df %>%
+    filter(ind == "ind7", fil_val == input$anno_ov) %>%
+    select(Mese = sub_fil_val, `Messaggi IO` = ind_val) %>%
+    arrange(Mese)
+
+  datatable(
+    tab,
+    rownames = FALSE,
+    filter   = "top",
+    options  = list(pageLength = 12, order = list(list(0, "asc")))
+  ) %>%
+    formatRound("Messaggi IO", digits = 0)
+})
+```
+
+### Notifiche SEND — Analogiche vs Digitali per mese (anno selezionato)
+
+```{r}
+renderDT({
+  tab <- df %>%
+    filter(ind %in% c("ind27", "ind28", "ind29"), fil_val == input$anno_ov) %>%
+    mutate(tipo = case_when(
+      ind == "ind27" ~ "Analogiche",
+      ind == "ind28" ~ "Digitali",
+      ind == "ind29" ~ "Totale"
+    )) %>%
+    select(Mese = sub_fil_val, tipo, ind_val) %>%
+    filter(!is.na(Mese)) %>%
+    pivot_wider(names_from = tipo, values_from = ind_val) %>%
+    arrange(Mese)
+
+  datatable(
+    tab,
+    rownames = FALSE,
+    filter   = "top",
+    options  = list(pageLength = 12, order = list(list(0, "asc")))
+  ) %>%
+    formatRound(c("Analogiche", "Digitali", "Totale"), digits = 0)
 })
 ```
 
@@ -230,7 +348,7 @@ renderPlotly({
     arrange(desc(ind_val))
 
   p <- ggplot(reg_df, aes(x = reorder(reg, ind_val), y = ind_val)) +
-    geom_col(fill = "#007bff") +
+    geom_col(fill = "#9ec5fe") +
     coord_flip() +
     theme_minimal() +
     theme(axis.text.y = element_text(size = 8))
@@ -272,7 +390,7 @@ renderPlotly({
   if (nrow(c_df) == 0) return(NULL)
 
   p <- ggplot(c_df, aes(x = reorder(nome, ind_val), y = ind_val)) +
-    geom_col(fill = "#28a745") +
+    geom_col(fill = "#a3cfbb") +
     coord_flip() +
     theme_minimal() +
     labs(x = NULL, y = "N. Transazioni")
@@ -295,7 +413,7 @@ renderPlotly({
   titolo <- paste("Fasce d'Importo per:", ind_fasce_nomi[input$cat_fasce], "- Anno", input$anno_pago)
 
   p <- ggplot(f_df, aes(x = sub_fil_val, y = ind_val)) +
-    geom_col(fill = "#198754") +
+    geom_col(fill = "#a3cfbb") +
     theme_minimal() +
     labs(x = "Fascia (€)", y = "N. Transazioni", title = titolo) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
@@ -327,7 +445,7 @@ renderValueBox({
   valueBox(
     format(sum(df$ind_val[df$ind == "ind7" & df$fil_val == input$anno_io & df$sub_fil_val == input$mese_io], na.rm = TRUE), big.mark = "."),
     icon = "fa-comment-dots",
-    color = "purple"
+    color = "info"
   )
 })
 ```
@@ -342,8 +460,8 @@ renderPlotly({
   i_df <- df %>% filter(ind == "ind7", fil_val == input$anno_io) %>% arrange(sub_fil_val)
 
   p <- ggplot(i_df, aes(x = sub_fil_val, y = ind_val, group = 1)) +
-    geom_area(fill = "#6f42c1", alpha = 0.3) +
-    geom_line(color = "#6f42c1") +
+    geom_area(fill = "#b5a4d4", alpha = 0.3) +
+    geom_line(color = "#b5a4d4") +
     theme_minimal()
 
   ggplotly(p)
@@ -372,7 +490,8 @@ Row
 renderValueBox({
   valueBox(
     format(sum(df$ind_val[df$ind == "ind27" & df$fil_val == input$anno_send & df$sub_fil_val == input$mese_send], na.rm = TRUE), big.mark = "."),
-    color = "#6c757d"
+    icon  = "fa-envelope-open",
+    color = "#dee2e6"
   )
 })
 ```
@@ -383,6 +502,7 @@ renderValueBox({
 renderValueBox({
   valueBox(
     format(sum(df$ind_val[df$ind == "ind28" & df$fil_val == input$anno_send & df$sub_fil_val == input$mese_send], na.rm = TRUE), big.mark = "."),
+    icon  = "fa-bolt",
     color = "info"
   )
 })
@@ -394,7 +514,8 @@ renderValueBox({
 renderValueBox({
   valueBox(
     format(sum(df$ind_val[df$ind == "ind29" & df$fil_val == input$anno_send & df$sub_fil_val == input$mese_send], na.rm = TRUE), big.mark = "."),
-    color = "orange"
+    icon  = "fa-paper-plane",
+    color = "warning"
   )
 })
 ```
@@ -434,7 +555,7 @@ renderPlotly({
   a_df <- df %>% filter(ind == "ind30", fil == "fil_ambito") %>% arrange(desc(ind_val))
 
   p <- ggplot(a_df, aes(x = reorder(fil_val, ind_val), y = ind_val)) +
-    geom_col(fill = "#fd7e14") +
+    geom_col(fill = "#ffd699") +
     coord_flip() +
     theme_minimal() +
     labs(x = NULL, y = NULL)

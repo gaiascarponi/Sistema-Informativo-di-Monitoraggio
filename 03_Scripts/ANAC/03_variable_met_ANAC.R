@@ -1,3 +1,4 @@
+rm(list = ls())
 ################################################################################
 #                                 IMPORT
 ################################################################################
@@ -20,8 +21,8 @@ data_oggi <- format(Sys.time(), "%Y%m%d")
 log_filename <- paste0("log_", nome_script, "_", data_oggi, ".txt")
 
 #Definisco il percorso locale 
-if (!dir.exists("05_Logs/PagoPA")) dir.create("05_Log/PagoPA", recursive = TRUE)
-log_path <- file.path("05_Logs/PagoPA", log_filename)
+if (!dir.exists("07_Temp/ANAC")) dir.create("07_Temp/ANAC", recursive = TRUE)
+log_path <- file.path("07_Temp/ANAC", log_filename)
 #attivazione log
 con <- file(log_path, open = "wt")
 sink(con, type = "output")
@@ -89,11 +90,11 @@ report_metadati <- map_df(lista_nomi_dataset, estrai_metadati)
 ################################################################################
 #                               EXPORT
 ################################################################################
-variables_met_id <- "1aPaw2tTDnD6DnmhrVWws7YBpGAadBkdZ"
+variables_met_id <- "19EdIQwoAyJB5yFtXK6Fkjfvkz63qB-Ml"
 
 #export locale in .xlsx e .csv
-file_excel <- file.path("02_Metadata/ANAC", "ANAC_variables.xlsx")
-file_csv   <- file.path("02_Metadata/ANAC", "ANAC_variables.csv")
+file_excel <- file.path("07_Temp/ANAC", "ANAC_variables.xlsx")
+file_csv   <- file.path("07_Temp/ANAC", "ANAC_variables.csv")
 write_xlsx(report_metadati, file_excel)
 write_excel_csv2(report_metadati, file_csv)
 
@@ -103,7 +104,7 @@ message("Report metadati generati localmente in 02_Metadata/ANAC")
 write_xlsx(report_metadati, file_excel)
 # Salva CSV 
 write_excel_csv2(report_metadati, file_csv)
-message("Report metadati generato con successo in 02_Metadata/PagoPA")
+message("Report metadati generato con successo in 02_Metadata/ANAC")
 
 #export su Drive in .xlsx e .csv
 drive_put(media = file_excel, path = as_id(variables_met_id), name = "ANAC_variables.xlsx")
@@ -132,3 +133,4 @@ drive_upload(
   name = log_filename
 )
 
+rm(list = ls())

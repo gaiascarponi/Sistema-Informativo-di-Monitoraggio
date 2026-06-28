@@ -1,3 +1,4 @@
+rm(list = ls())
 ################################################################################
 #                                 IMPORT
 ################################################################################
@@ -21,8 +22,8 @@ data_oggi <- format(Sys.time(), "%Y%m%d")
 log_filename <- paste0("log_", nome_script, "_", data_oggi, ".txt")
 
 #Definisco il percorso locale 
-if (!dir.exists("05_Logs/ANAC")) dir.create("05_Log/ANAC", recursive = TRUE)
-log_path <- file.path("05_Logs/ANAC", log_filename)
+if (!dir.exists("07_Temp/ANAC")) dir.create("07_Temp/ANAC", recursive = TRUE)
+log_path <- file.path("07_Temp/ANAC", log_filename)
 #attivazione log
 con <- file(log_path, open = "wt")
 sink(con, type = "output")
@@ -52,20 +53,28 @@ walk(mesi, function(m) {
     path_locale <- file.path("07_Temp", nome_file_cercato)
     nome_oggetto <- str_glue("cig_{m}") 
     message("Scaricamento: ", nome_file_cercato)
-    # Download
+    
     drive_download(
       file = as_id(file_info$id),
       path = path_locale,
       overwrite = TRUE,
       verbose = FALSE
     )
-    #lettura dei files
+    
+    # Lettura e conversione specifica
     df_mese <- read_excel(path_locale) %>% 
+      # 1. Trasformiamo tutto in character per evitare conflitti tra file
       mutate(across(everything(), as.character)) %>% 
+      # 2. Convertiamo in numerico solo le colonne che ci servono
+      mutate(
+        importo_lotto = as.numeric(importo_lotto),
+        importo_complessivo_gara = as.numeric(importo_complessivo_gara),
+        n_lotti_componenti = as.numeric(n_lotti_componenti)
+      ) %>% 
       mutate(mese_rif = m)
-    #Caricamento in R-Studio
+    
     assign(nome_oggetto, df_mese, envir = .GlobalEnv)
-    #Rimuovi files temporanei 
+    
     unlink(path_locale)
     message("Completato: ", nome_oggetto)
   } else {
@@ -74,7 +83,7 @@ walk(mesi, function(m) {
 })
 
 # Pulizia
-rm(file_su_drive, folder_id, ricerche, risultati, cartella_cig2023)
+rm(file_su_drive, folder_id)
 ################################################################################
 #                        MANIPULATION CIG (APPEND)
 ###############################################################################
@@ -83,8 +92,23 @@ nomi_dataset <- str_glue("cig_{mesi}")
 dataset_puliti <- mget(nomi_dataset) %>% 
   map(~ mutate(.x, DURATA_PREVISTA = as.character(DURATA_PREVISTA)))
 cig_2023 <- bind_rows(dataset_puliti)
+
+
 rm(list = c(nomi_dataset, "mesi", "nomi_dataset", "dataset_puliti"))
 
+#controlliamo se ci sono duplicati di gara per errore
+duplicati_summary <- cig_2023 %>%
+  count(cig) %>%
+  filter(n > 1) %>%
+  arrange(desc(n))
+
+print(duplicati_summary)
+
+if (nrow(duplicati_summary) == 0) {
+  message("Nessun duplicato, perfetto!")
+} else {
+  message("Attenzione: trovati ", nrow(duplicati_summary), " CIG duplicati.")
+}
 ################################################################################
 #                       ESPORTAZIONE SU GOOGLE DRIVE (RDS)
 ################################################################################
@@ -122,5 +146,5 @@ drive_upload(
   name = log_filename
 )
 
-rm(list=ls())
+rm(list = ls())
 

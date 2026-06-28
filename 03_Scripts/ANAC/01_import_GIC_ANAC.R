@@ -1,21 +1,18 @@
+rm(list = ls())
 ################################################################################
 #                                 LIBRERIE
 ################################################################################
-if (!require("jsonlite")) install.packages("jsonlite")
-if (!require("dplyr")) install.packages("dplyr")
-if (!require("httr")) install.packages("httr")
-
 library(jsonlite)
-library(dplyr)
+library(googledrive)
+library(tidydr)
 library(httr)
-library(jsonlite)
+library(stringr)
 library(writexl)
 library(dplyr)
 
 ################################################################################
 #                          CONFIGURATION LOG 
 ################################################################################
-
 #Recupero il nome dello script attuale
 nome_script <- basename(rstudioapi::getActiveDocumentContext()$path) %>% 
   str_remove("\\.[rR]$") 
@@ -25,8 +22,8 @@ data_oggi <- format(Sys.time(), "%Y%m%d")
 log_filename <- paste0("log_", nome_script, "_", data_oggi, ".txt")
 
 #Definisco il percorso locale 
-if (!dir.exists("05_Logs/ANAC")) dir.create("05_Log/ANAC", recursive = TRUE)
-log_path <- file.path("05_Logs/ANAC", log_filename)
+if (!dir.exists("07_Temp/ANAC")) dir.create("07_Temp/ANAC", recursive = TRUE)
+log_path <- file.path("07_Temp/ANAC", log_filename)
 #attivazione log
 con <- file(log_path, open = "wt")
 sink(con, type = "output")
@@ -38,13 +35,15 @@ message("Script in esecuzione: ", nome_script)
 ################################################################################
 #                             CONFIGURATIONS
 ################################################################################
+drive_auth(scopes = "https://www.googleapis.com/auth/drive")
+
 # ID del dataset
 dataset_id <- "64a3fcfd-bf5f-484d-96cd-a19804ae5bf0"
 # URL API 
 url_api <- paste0("https://www.dati.gov.it/opendata/api/3/action/package_show?id=", dataset_id)
 
 #drive
-drive_auth(scopes = "https://www.googleapis.com/auth/drive")
+
 DRIVE_ROOT_ID  <- "14jMYmLq78M-0LxuaIBAGao16ZhF59xDc"
 DRIVE_DIR_SOURCE    <- "01_Dataset/Source"
 DRIVE_DIR_SOURCE_ANAC <-  file.path(DRIVE_DIR_SOURCE, "ANAC")
@@ -146,5 +145,5 @@ drive_upload(
   name = log_filename
 )
 
-rm(list=ls())
+rm(list = ls())
 

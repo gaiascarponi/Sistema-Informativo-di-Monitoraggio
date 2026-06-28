@@ -27,11 +27,13 @@ FILE_HOME <- file.path("03_Scripts", "SIM", "06_dashboard_SIM_integrata.Rmd")
 FILE_PADIGITALE <- file.path("03_Scripts", "PAdigitale2026", "05_dashboard_SIM_PADigitale2026.Rmd")
 FILE_CONTO_ANNUALE <- file.path("03_Scripts", "Conto_annuale", "05_dashboard_SIM_ContoAnnuale.Rmd")
 FILE_INDICATORS_PAGOPA <- file.path("03_Scripts", "PagoPA", "05_dashboard_SIM_PagoPA.Rmd")
+FILE_ANAC <- file.path("03_Scripts", "ANAC", "05_dashboard_SIM_ANAC.Rmd")
 
 PORT_HOME <- 8010L
 PORT_CONTO_ANNUALE <- 8011L
 PORT_PADIGITALE <- 8012L
 PORT_INDICATORS_PAGOPA <- 8013L
+PORT_ANAC <- 8014L
 
 # Lista di perimetro comune. Il percorso stabile è definito in 00_config.R.
 DRIVE_MASTER_PA_FILE <- DRIVE_FILE_LISTA_RACCORDO_SIM
@@ -44,10 +46,14 @@ PATTERN_CONTO_ANNUALE <- "^master_CA_multianno_.*\\.rds$"
 DRIVE_PAD_INDICATORS <- file.path(DRIVE_DIR_INDICATORS_PAD26, RUN_ID_PADIGITALE)
 DRIVE_PAD_METADATA <- file.path(DRIVE_DIR_INDICATORS_MET_PAD26, RUN_ID_PADIGITALE)
 
+#ANAC
+DRIVE_ANAC_INDICATORS     <- file.path(DRIVE_DIR_INDICATORS_ANAC, "INDICATORS_ANAC.json")
+DRIVE_ANAC_INDICATORS_CPV <- file.path(DRIVE_DIR_INDICATORS_ANAC, "INDICATORS_CPV_ANAC.json")
+
 
 # 2) HELPERS ------------------------------------------------------------------- 
 
-required_files <- c(FILE_HOME, FILE_PADIGITALE, FILE_CONTO_ANNUALE, FILE_INDICATORS_PAGOPA)
+required_files <- c(FILE_HOME, FILE_PADIGITALE, FILE_CONTO_ANNUALE, FILE_INDICATORS_PAGOPA, FILE_ANAC)
 missing_files <- required_files[!file.exists(required_files)]
 if (length(missing_files) > 0L) stop("File Rmd mancanti: ", paste(missing_files, collapse = ", "))
 
@@ -164,6 +170,15 @@ tryCatch({
   path_json_indicators <- download_exact(DRIVE_DIR_INDICATORS_PAGOPA, "INDICATORS_PAGOPA.json")
   path_fil_reg <- download_exact(DRIVE_DIR_CLASSIFICATION_MET, "fil_reg.rds")
   
+  path_anac_indicators     <- download_drive_file(DRIVE_ANAC_INDICATORS,     "INDICATORS_ANAC.json")
+  path_anac_indicators_cpv <- download_drive_file(DRIVE_ANAC_INDICATORS_CPV, "INDICATORS_CPV_ANAC.json")
+  
+  anac_params <- list(
+    file_indicators_anac     = path_anac_indicators,
+    file_indicators_cpv_anac = path_anac_indicators_cpv,
+    file_lista_raccordo      = master_pa
+  )
+  
   my_indicators_params <- list(
     file_indicators = path_json_indicators,
     file_regioni = path_fil_reg
@@ -185,6 +200,7 @@ tryCatch({
   children$conto_annuale <- run_rmd_child(file = FILE_CONTO_ANNUALE, port = PORT_CONTO_ANNUALE, params = ca_params, app_name = "conto_annuale")
   children$padigitale <- run_rmd_child(file = FILE_PADIGITALE, port = PORT_PADIGITALE, params = pad_params, app_name = "padigitale")
   children$indicators_pagopa <- run_rmd_child( file = FILE_INDICATORS_PAGOPA, port = PORT_INDICATORS_PAGOPA, params = my_indicators_params, app_name = "indicators_pagopa")
+  children$anac <- run_rmd_child(file = FILE_ANAC, port = PORT_ANAC, params = anac_params, app_name = "anac")
   
   Sys.sleep(8)
   
@@ -245,8 +261,7 @@ tryCatch({
           PORT_PADIGITALE
         ),
         url_indicators_pagopa = sprintf("http://127.0.0.1:%d", PORT_INDICATORS_PAGOPA),
-        
-        url_anac = NULL,
+        url_anac = sprintf("http://127.0.0.1:%d", PORT_ANAC),
         
         id_ente_col = "codice_fiscale",
         nome_ente_col = "ragione_sociale",

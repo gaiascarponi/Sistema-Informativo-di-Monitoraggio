@@ -25,9 +25,17 @@ RUN_ID_PADIGITALE <- "20260624_163200"
 
 FILE_HOME <- file.path("03_Scripts", "SIM", "06_dashboard_SIM_integrata.Rmd")
 FILE_PADIGITALE <- file.path("03_Scripts", "PAdigitale2026", "05_dashboard_SIM_PADigitale2026.Rmd")
-FILE_CONTO_ANNUALE <- file.path("03_Scripts", "Conto_annuale", "05_dashboard_SIM_ContoAnnuale.Rmd")
 FILE_INDICATORS_PAGOPA <- file.path("03_Scripts", "PagoPA", "05_dashboard_SIM_PagoPA.Rmd")
 FILE_ANAC <- file.path("03_Scripts", "ANAC", "05_dashboard_SIM_ANAC.Rmd")
+
+# Conto Annuale
+# Per cambiare dashboard CA, modifica solo questo nome file.
+NOME_DASHBOARD_CONTO_ANNUALE <- "05_dashboard_SIM_ContoAnnuale_v4.Rmd"
+
+FILE_CONTO_ANNUALE <- file.path(
+  "03_Scripts","Conto_annuale",
+  NOME_DASHBOARD_CONTO_ANNUALE
+  )
 
 PORT_HOME <- 8010L
 PORT_CONTO_ANNUALE <- 8011L
@@ -38,9 +46,12 @@ PORT_ANAC <- 8014L
 # Lista di perimetro comune. Il percorso stabile è definito in 00_config.R.
 DRIVE_MASTER_PA_FILE <- DRIVE_FILE_LISTA_RACCORDO_SIM
 
-# Conto annuale.
-DRIVE_CONTO_ANNUALE <- DRIVE_DIR_PROCESSED_CONTO_ANNUALE
-PATTERN_CONTO_ANNUALE <- "^master_CA_multianno_.*\\.rds$"
+# Path input to datasets used by fchildren
+# Conto Annuale - nuova dashboard
+DRIVE_DIR_DATASET <- "01_Dataset"
+DRIVE_DIR_INDICATORS <- file.path(DRIVE_DIR_DATASET, "Indicators")
+DRIVE_CA_INDICATORS <- file.path(DRIVE_DIR_INDICATORS, "Conto_annuale")
+DRIVE_CA_DASHBOARD_CATALOG <- file.path(DRIVE_CA_INDICATORS, "Dashboard")
 
 # PA Digitale.
 DRIVE_PAD_INDICATORS <- file.path(DRIVE_DIR_INDICATORS_PAD26, RUN_ID_PADIGITALE)
@@ -97,6 +108,45 @@ download_exact <- function(folder, filename) {
   local_path <- file.path(DIR_INPUT, filename)
   drive_download_from_path(file.path(folder, filename), local_path)
   if (!file.exists(local_path)) stop("Download non riuscito: ", filename)
+  normalizePath(local_path, winslash = "/", mustWork = TRUE)
+}
+
+find_latest_run_folder <- function(drive_folder_rel) {
+  folder <- googledrive::drive_get(path = drive_folder_rel)
+  
+  runs <- googledrive::drive_ls(folder) |>
+    dplyr::filter(stringr::str_detect(.data$name, "^\\d{8}_\\d{6}$")) |>
+    dplyr::arrange(dplyr::desc(.data$name)) |>
+    dplyr::slice(1)
+  
+  if (nrow(runs) == 0L) {
+    stop("Nessuna cartella RUN_ID trovata in: ", drive_folder_rel)
+  }
+  
+  runs
+}
+
+download_file_from_run_integrata <- function(run_folder, filename, local_name = filename) {
+  files <- googledrive::drive_ls(run_folder) |>
+    dplyr::filter(.data$name == filename) |>
+    dplyr::slice(1)
+  
+  if (nrow(files) == 0L) {
+    stop("File non trovato nella cartella RUN_ID ", run_folder$name[[1]], ": ", filename)
+  }
+  
+  local_path <- file.path(DIR_INPUT, local_name)
+  
+  googledrive::drive_download(
+    file = files,
+    path = local_path,
+    overwrite = TRUE
+  )
+  
+  if (!file.exists(local_path)) {
+    stop("Download non riuscito: ", local_path)
+  }
+  
   normalizePath(local_path, winslash = "/", mustWork = TRUE)
 }
 
@@ -165,7 +215,6 @@ children <- list()
 
 tryCatch({
   master_pa <- download_drive_file(DRIVE_MASTER_PA_FILE)
-  master_ca <- download_latest(DRIVE_CONTO_ANNUALE, PATTERN_CONTO_ANNUALE)
   
   path_json_indicators <- download_exact(DRIVE_DIR_INDICATORS_PAGOPA, "INDICATORS_PAGOPA.json")
   path_fil_reg <- download_exact(DRIVE_DIR_CLASSIFICATION_MET, "fil_reg.rds")
@@ -195,7 +244,35 @@ tryCatch({
     risoluzione_nuts = "10"
   )
 
-  ca_params <- list(file_master_ca = master_ca)
+  latest_indicators_run_ca <- find_latest_run_folder(DRIVE_CA_INDICATORS)
+  run_id_indicatori_ca <- latest_indicators_run_ca$name[[1]]
+  
+  latest_catalog_run <- find_latest_run_folder(DRIVE_CA_DASHBOARD_CATALOG)
+  run_id_catalogo_ca <- latest_catalog_run$name[[1]]
+  
+  message("Ultimo RUN indicatori CA: ", run_id_indicatori_ca)
+  message("Ultimo RUN catalogo/dashboard CA: ", run_id_catalogo_ca)
+  
+  ca_files <- list(
+    file_fact_ca_dashboard = download_file_from_run_integrata(latest_indicators_run_ca, "FACT_CA_DASHBOARD.rds"),
+    file_dash_sections_ca = download_file_from_run_integrata(latest_catalog_run, "DASH_SECTIONS_CA.rds"),
+    file_dash_filters_ca = download_file_from_run_integrata(latest_catalog_run, "DASH_FILTERS_CA.rds"),
+    file_dash_indicators_ca = download_file_from_run_integrata(latest_catalog_run, "DASH_INDICATORS_CA.rds"),
+    file_fact_ca_coverage = download_file_from_run_integrata(latest_catalog_run, "FACT_CA_COVERAGE.rds"),
+    file_fact_ca_regione = download_file_from_run_integrata(latest_catalog_run, "FACT_CA_REGIONE.rds"),
+    file_fact_ca_zona = download_file_from_run_integrata(latest_catalog_run, "FACT_CA_ZONA.rds"),
+    file_fact_ca_fg = download_file_from_run_integrata(latest_catalog_run, "FACT_CA_FG.rds"),
+    file_fact_ca_tipologia = download_file_from_run_integrata(latest_catalog_run, "FACT_CA_TIPOLOGIA.rds"),
+    file_fact_ca_trend = download_file_from_run_integrata(latest_catalog_run, "FACT_CA_TREND.rds")
+  )
+  
+  ca_params <- c(
+    ca_files,
+    list(
+      run_id_indicatori_ca = run_id_indicatori_ca,
+      run_id_catalogo_ca = run_id_catalogo_ca
+    )
+  )
 
   children$conto_annuale <- run_rmd_child(file = FILE_CONTO_ANNUALE, port = PORT_CONTO_ANNUALE, params = ca_params, app_name = "conto_annuale")
   children$padigitale <- run_rmd_child(file = FILE_PADIGITALE, port = PORT_PADIGITALE, params = pad_params, app_name = "padigitale")

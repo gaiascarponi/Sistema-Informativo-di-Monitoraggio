@@ -91,9 +91,109 @@ if (length(missing_packages) > 0) {
   flush.console()
 }
 
+# ============================================================
+# Controllo Pandoc
+# ============================================================
+
+cat("2b/5 Controllo Pandoc...\n")
+flush.console()
+
+# Prova a trovare automaticamente Pandoc installato con RStudio/Quarto
+candidate_pandoc <- c(
+  Sys.getenv("RSTUDIO_PANDOC"),
+  "C:/Program Files/RStudio/resources/app/bin/quarto/bin/tools",
+  "C:/Program Files/RStudio/resources/app/quarto/bin/tools",
+  "C:/Program Files/Positron/resources/app/quarto/bin/tools",
+  "C:/Program Files/Quarto/bin/tools"
+)
+
+candidate_pandoc <- candidate_pandoc[nzchar(candidate_pandoc)]
+candidate_pandoc <- candidate_pandoc[file.exists(file.path(candidate_pandoc, "pandoc.exe"))]
+
+if (length(candidate_pandoc) > 0) {
+  Sys.setenv(RSTUDIO_PANDOC = candidate_pandoc[[1]])
+}
+
+if (!rmarkdown::pandoc_available()) {
+  stop(
+    paste(
+      "Pandoc non trovato.",
+      "",
+      "Installare RStudio Desktop oppure Quarto.",
+      "Se RStudio è già installato, verificare il percorso di installazione."
+    ),
+    call. = FALSE
+  )
+}
+
+cat("✓ Pandoc trovato (", as.character(rmarkdown::pandoc_version()), ")\n\n", sep = "")
+flush.console()
+
 cat("3/5 Avvio accesso a Google Drive...\n")
+
+# ============================================================
+# Controllo Pandoc
+# ============================================================
+
+cat("2b/5 Controllo Pandoc...\n")
+flush.console()
+
+pandoc_exe <- if (.Platform$OS.type == "windows") "pandoc.exe" else "pandoc"
+
+candidate_pandoc <- c(
+  Sys.getenv("RSTUDIO_PANDOC"),
+  
+  # macOS - RStudio
+  "/Applications/RStudio.app/Contents/Resources/app/quarto/bin/tools/aarch64",
+  "/Applications/RStudio.app/Contents/Resources/app/quarto/bin/tools/x86_64",
+  "/Applications/RStudio.app/Contents/Resources/app/quarto/bin/tools",
+  
+  # macOS - Quarto / Homebrew
+  "/Applications/Quarto.app/Contents/Resources/bin/tools",
+  "/opt/homebrew/bin",
+  "/usr/local/bin",
+  
+  # Windows - RStudio / Quarto
+  "C:/Program Files/RStudio/resources/app/bin/quarto/bin/tools",
+  "C:/Program Files/RStudio/resources/app/quarto/bin/tools",
+  "C:/Program Files/RStudio/resources/app/quarto/bin/tools/x86_64",
+  "C:/Program Files/RStudio/resources/app/quarto/bin/tools/aarch64",
+  "C:/Program Files/Quarto/bin/tools",
+  "C:/Program Files/Quarto/bin"
+)
+
+candidate_pandoc <- candidate_pandoc[nzchar(candidate_pandoc)]
+candidate_pandoc <- candidate_pandoc[file.exists(file.path(candidate_pandoc, pandoc_exe))]
+
+if (length(candidate_pandoc) > 0) {
+  Sys.setenv(RSTUDIO_PANDOC = candidate_pandoc[[1]])
+}
+
+if (!rmarkdown::pandoc_available()) {
+  stop(
+    paste(
+      "Pandoc non trovato.",
+      "",
+      "Per avviare il SIM e' necessario che Pandoc sia disponibile.",
+      "Pandoc e' incluso in RStudio Desktop oppure in Quarto.",
+      "",
+      "Soluzione consigliata:",
+      "- installare o aggiornare RStudio Desktop;",
+      "- in alternativa installare Quarto;",
+      "- poi riavviare il launcher SIM.",
+      sep = "\n"
+    ),
+    call. = FALSE
+  )
+}
+
+cat("✓ Pandoc trovato: ", as.character(rmarkdown::pandoc_version()), "\n", sep = "")
+cat("✓ Percorso Pandoc: ", Sys.getenv("RSTUDIO_PANDOC"), "\n\n", sep = "")
+flush.console()
+
 cat("Se richiesto, completare il login nel browser.\n\n")
 flush.console()
+
 
 cat("4/5 Download dati e preparazione input...\n")
 cat("Questa fase può richiedere tempo. Attendere senza chiudere la finestra.\n\n")

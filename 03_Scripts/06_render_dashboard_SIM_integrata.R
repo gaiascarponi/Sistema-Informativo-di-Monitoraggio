@@ -77,6 +77,10 @@ dir.create(DIR_LOGS, recursive = TRUE, showWarnings = FALSE)
 
 console_log <- start_console_log(DIR_LOGS, RUN_ID_DASHBOARD, "06_render_dashboard_SIM_integrata")
 
+message("Pandoc padre disponibile: ", rmarkdown::pandoc_available())
+message("Pandoc padre versione: ", as.character(rmarkdown::pandoc_version()))
+message("RSTUDIO_PANDOC padre: ", Sys.getenv("RSTUDIO_PANDOC"))
+
 find_latest_drive_file <- function(drive_folder_rel, pattern) {
   folder <- drive_get(path = drive_folder_rel)
   files <- drive_ls(folder) |>
@@ -150,6 +154,66 @@ download_file_from_run_integrata <- function(run_folder, filename, local_name = 
   normalizePath(local_path, winslash = "/", mustWork = TRUE)
 }
 
+# run_rmd_child <- function(
+#     file,
+#     port,
+#     params = list(),
+#     app_name
+# ) {
+#   stdout_file <- file.path(
+#     DIR_LOGS,
+#     paste0(app_name, "_stdout.log")
+#   )
+#   
+#   stderr_file <- file.path(
+#     DIR_LOGS,
+#     paste0(app_name, "_stderr.log")
+#   )
+#   
+#   proc <- callr::r_bg(
+#     func = function(file, port, params, root) {
+#       setwd(root)
+#       
+#       rmarkdown::run(
+#         file = file,
+#         shiny_args = list(
+#           host = "127.0.0.1",
+#           port = port,
+#           launch.browser = FALSE
+#         ),
+#         render_args = list(
+#           params = params,
+#           knit_root_dir = root,
+#           envir = new.env(parent = globalenv())
+#         )
+#       )
+#     },
+#     args = list(
+#       file = normalizePath(
+#         file,
+#         winslash = "/",
+#         mustWork = TRUE
+#       ),
+#       port = port,
+#       params = params,
+#       root = normalizePath(
+#         getwd(),
+#         winslash = "/",
+#         mustWork = TRUE
+#       )
+#     ),
+#     stdout = stdout_file,
+#     stderr = stderr_file,
+#     supervise = TRUE
+#   )
+#   
+#   attr(proc, "app_name") <- app_name
+#   attr(proc, "stdout_file") <- stdout_file
+#   attr(proc, "stderr_file") <- stderr_file
+#   
+#   proc
+# }
+
 run_rmd_child <- function(
     file,
     port,
@@ -166,9 +230,32 @@ run_rmd_child <- function(
     paste0(app_name, "_stderr.log")
   )
   
+  pandoc_path <- Sys.getenv("RSTUDIO_PANDOC")
+  
   proc <- callr::r_bg(
-    func = function(file, port, params, root) {
+    func = function(file, port, params, root, pandoc_path) {
       setwd(root)
+      
+      if (nzchar(pandoc_path)) {
+        Sys.setenv(RSTUDIO_PANDOC = pandoc_path)
+      }
+      
+      message("Dashboard figlia: ", basename(file))
+      message("Working directory figlio: ", getwd())
+      message("RSTUDIO_PANDOC figlio: ", Sys.getenv("RSTUDIO_PANDOC"))
+      message("Pandoc disponibile figlio: ", rmarkdown::pandoc_available())
+      
+      if (!rmarkdown::pandoc_available()) {
+        stop(
+          paste(
+            "Pandoc non trovato.",
+            "Installare RStudio oppure Quarto."
+          ),
+          call. = FALSE
+        )
+      }
+      
+      message("Pandoc versione figlio: ", as.character(rmarkdown::pandoc_version()))
       
       rmarkdown::run(
         file = file,
@@ -196,7 +283,8 @@ run_rmd_child <- function(
         getwd(),
         winslash = "/",
         mustWork = TRUE
-      )
+      ),
+      pandoc_path = pandoc_path
     ),
     stdout = stdout_file,
     stderr = stderr_file,
@@ -209,6 +297,7 @@ run_rmd_child <- function(
   
   proc
 }
+
 
 status_run <- "failed"
 children <- list()

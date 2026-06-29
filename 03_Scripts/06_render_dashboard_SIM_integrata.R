@@ -17,7 +17,12 @@ suppressPackageStartupMessages({
   library(rmarkdown)
 })
 
-googledrive::drive_auth(scopes = "https://www.googleapis.com/auth/drive")
+# googledrive::drive_auth(scopes = "https://www.googleapis.com/auth/drive")
+googledrive::drive_auth(
+  scopes = "https://www.googleapis.com/auth/drive",
+  cache = ".secrets",
+  email = TRUE
+)
 
 # 1) PARAMETRI DA CONFIGURARE -------------------------------------------------- 
 

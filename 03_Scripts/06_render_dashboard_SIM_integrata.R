@@ -21,7 +21,7 @@ googledrive::drive_auth(scopes = "https://www.googleapis.com/auth/drive")
 
 # 1) PARAMETRI DA CONFIGURARE -------------------------------------------------- 
 
-RUN_ID_PADIGITALE <- "20260623_025543"
+RUN_ID_PADIGITALE <- "20260624_163200"
 
 FILE_HOME <- file.path("03_Scripts", "SIM", "06_dashboard_SIM_integrata.Rmd")
 FILE_PADIGITALE <- file.path("03_Scripts", "PAdigitale2026", "05_dashboard_SIM_PADigitale2026.Rmd")

@@ -25,7 +25,7 @@ googledrive::drive_auth(
 # PARAMETRI
 # --------------------------------------------------------------------------- #
 
-RUN_ID_INDICATORS <- "20260623_025543"
+RUN_ID_INDICATORS <- "20260624_163200"
 
 FILE_RMD <- file.path(
   "03_Scripts",

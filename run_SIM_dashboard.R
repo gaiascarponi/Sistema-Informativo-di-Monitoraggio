@@ -98,20 +98,10 @@ if (length(missing_packages) > 0) {
 cat("2b/5 Controllo Pandoc...\n")
 flush.console()
 
-# Prova a trovare automaticamente Pandoc installato con RStudio/Quarto
-candidate_pandoc <- c(
-  Sys.getenv("RSTUDIO_PANDOC"),
-  "C:/Program Files/RStudio/resources/app/bin/quarto/bin/tools",
-  "C:/Program Files/RStudio/resources/app/quarto/bin/tools",
-  "C:/Program Files/Positron/resources/app/quarto/bin/tools",
-  "C:/Program Files/Quarto/bin/tools"
-)
+pandoc_info <- rmarkdown::find_pandoc(cache = FALSE)
 
-candidate_pandoc <- candidate_pandoc[nzchar(candidate_pandoc)]
-candidate_pandoc <- candidate_pandoc[file.exists(file.path(candidate_pandoc, "pandoc.exe"))]
-
-if (length(candidate_pandoc) > 0) {
-  Sys.setenv(RSTUDIO_PANDOC = candidate_pandoc[[1]])
+if (!is.null(pandoc_info$dir) && nzchar(pandoc_info$dir)) {
+  Sys.setenv(RSTUDIO_PANDOC = pandoc_info$dir)
 }
 
 if (!rmarkdown::pandoc_available()) {
@@ -119,14 +109,18 @@ if (!rmarkdown::pandoc_available()) {
     paste(
       "Pandoc non trovato.",
       "",
-      "Installare RStudio Desktop oppure Quarto.",
-      "Se RStudio è già installato, verificare il percorso di installazione."
+      "Per avviare il SIM e' necessario installare RStudio Desktop oppure Quarto.",
+      "Se RStudio e' gia' installato, aprire RStudio e lanciare:",
+      "Sys.getenv('RSTUDIO_PANDOC')",
+      "rmarkdown::find_pandoc(cache = FALSE)",
+      sep = "\n"
     ),
     call. = FALSE
   )
 }
 
-cat("✓ Pandoc trovato (", as.character(rmarkdown::pandoc_version()), ")\n\n", sep = "")
+cat("✓ Pandoc trovato: ", as.character(rmarkdown::pandoc_version()), "\n", sep = "")
+cat("✓ Percorso Pandoc: ", Sys.getenv("RSTUDIO_PANDOC"), "\n\n", sep = "")
 flush.console()
 
 cat("3/5 Avvio accesso a Google Drive...\n")

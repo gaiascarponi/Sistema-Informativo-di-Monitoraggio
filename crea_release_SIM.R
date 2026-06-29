@@ -29,8 +29,8 @@ include_items <- c(
   "README.md",
   "README_LAUNCHER_SIM.txt",
   "run_SIM_dashboard.R",
-  "🚀 Apri SIM.command",
-  "🚀 Apri_SIM.bat",
+  "🚀 Apri_SIM_MAC.command",
+  "🚀 Apri_SIM_Windows.bat",
   "Monitoraggio-PNRR.Rproj"
 )
 

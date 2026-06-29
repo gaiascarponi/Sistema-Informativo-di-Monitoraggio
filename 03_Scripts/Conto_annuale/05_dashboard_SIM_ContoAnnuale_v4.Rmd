@@ -236,49 +236,49 @@ nuts2_it_ca <- tryCatch({
 
 SIM_GEO_AVAILABLE <- !is.null(nuts2_it_ca)
 
-# ── Lookup statico regione_bdap → NUTS_ID ─────────────────────────────────
-# Bypassa raccordo_nuts_ca (che dipende da codice_reg) usando una tabella
-# hardcoded basata sul nome BDAP normalizzato (uppercase, senza parte dopo /).
-# Trentino-Alto Adige → sia ITH1 (Bolzano) sia ITH2 (Trento), entrambi colorati.
+# ── Join robusto regione_bdap → NUTS_ID ───────────────────────────────────
+# Usa una tabella statica (no raccordo_nuts_ca, no codice_regione_dash).
+# Normalizza: uppercase + rimuove parte dopo "/".
+# Trentino → sia ITH1 (Bolzano) sia ITH2 (Trento): entrambi i poligoni colorati.
+# Compatibile con qualsiasi versione dplyr (no relationship arg).
 .reg_nuts_lookup <- tibble::tribble(
-  ~reg_norm,             ~NUTS_ID,
-  "PIEMONTE",            "ITC1",
-  "VALLE D",             "ITC2",
-  "LIGURIA",             "ITC3",
-  "LOMBARDIA",           "ITC4",
-  "TRENTINO-ALTO ADIGE", "ITH1",
-  "TRENTINO-ALTO ADIGE", "ITH2",
-  "VENETO",              "ITH3",
-  "FRIULI-VENEZIA GIULIA","ITH4",
-  "EMILIA-ROMAGNA",      "ITH5",
-  "TOSCANA",             "ITI1",
-  "UMBRIA",              "ITI2",
-  "MARCHE",              "ITI3",
-  "LAZIO",               "ITI4",
-  "ABRUZZO",             "ITF1",
-  "MOLISE",              "ITF2",
-  "CAMPANIA",            "ITF3",
-  "PUGLIA",              "ITF4",
-  "BASILICATA",          "ITF5",
-  "CALABRIA",            "ITF6",
-  "SICILIA",             "ITG1",
-  "SARDEGNA",            "ITG2"
+  ~reg_norm,                    ~NUTS_ID,
+  "PIEMONTE",                   "ITC1",
+  "VALLE D'AOSTA",              "ITC2",
+  "LIGURIA",                    "ITC3",
+  "LOMBARDIA",                  "ITC4",
+  "TRENTINO-ALTO ADIGE",        "ITH1",
+  "TRENTINO-ALTO ADIGE",        "ITH2",
+  "VENETO",                     "ITH3",
+  "FRIULI-VENEZIA GIULIA",      "ITH4",
+  "EMILIA-ROMAGNA",             "ITH5",
+  "TOSCANA",                    "ITI1",
+  "UMBRIA",                     "ITI2",
+  "MARCHE",                     "ITI3",
+  "LAZIO",                      "ITI4",
+  "ABRUZZO",                    "ITF1",
+  "MOLISE",                     "ITF2",
+  "CAMPANIA",                   "ITF3",
+  "PUGLIA",                     "ITF4",
+  "BASILICATA",                 "ITF5",
+  "CALABRIA",                   "ITF6",
+  "SICILIA",                    "ITG1",
+  "SARDEGNA",                   "ITG2"
 )
 
-# Normalizza il nome: uppercase + prende solo parte prima del "/"
 norm_reg <- function(x) {
   stringr::str_to_upper(x) |>
     stringr::str_replace_all("\\s*/.*", "") |>
     stringr::str_trim()
 }
 
-# Funzione di join: dati_reg → aggiunge NUTS_ID tramite lookup per nome
-add_nuts_id <- function(dati_reg) {
-  dati_reg |>
-    dplyr::mutate(reg_norm = norm_reg(.data$regione_bdap)) |>
-    dplyr::left_join(.reg_nuts_lookup, by = "reg_norm",
-                     relationship = "many-to-many") |>
-    dplyr::select(-reg_norm)
+add_nuts_id <- function(df) {
+  suppressWarnings(
+    df |>
+      dplyr::mutate(reg_norm = norm_reg(.data$regione_bdap)) |>
+      dplyr::left_join(.reg_nuts_lookup, by = "reg_norm") |>
+      dplyr::select(-reg_norm)
+  )
 }
 
 if (SIM_GEO_AVAILABLE) message("[SIM-GEO] Geometrie caricate: ", nrow(nuts2_it_ca), " NUTS2") else message("[SIM-GEO] giscoR non disponibile — mappe sostituite con bar chart")
@@ -843,10 +843,8 @@ output$map_ov_personale <- renderLeaflet({
 
   dati_reg <- d |>
     dplyr::filter(in_fonte_ca, !is.na(.data$regione_bdap)) |>
-    dplyr::group_by(
-      regione_bdap = .data$regione_bdap,
-      regione_dash = .data$regione_dash
-    ) |>
+    dplyr::group_by(regione_bdap = .data$regione_bdap,
+                    regione_dash = .data$regione_dash) |>
     dplyr::group_modify(~agg_ca(.x)) |>
     dplyr::ungroup() |>
     dplyr::mutate(map_value = .data$personale_tot) |>
@@ -981,13 +979,11 @@ output$map_str_eta <- renderLeaflet({
   dati_reg <- dati_reg |> dplyr::filter(!is.na(map_value))
   req(nrow(dati_reg) > 0)
   map_data <- nuts2_it_ca |> dplyr::left_join(dati_reg, by="NUTS_ID")
-
   pal <- leaflet::colorNumeric(c("#1a7a3a","#f5c842","#c0392b"),
                                domain=map_data$map_value, na.color="#e0e0e0")
   map_data <- map_data |>
     dplyr::mutate(
       fill_color = pal(.data$map_value),
-      # NOTA: ifelse() vettorizzato (non if()), per evitare [object Object]
       popup_html = paste0(
         "<b>", htmltools::htmlEscape(.data$nome_regione_mappa), "</b>",
         ifelse(by_zona & !is.na(.data$zona_dash),
@@ -1009,7 +1005,7 @@ output$map_str_eta <- renderLeaflet({
         weight=2, color="#333", fillOpacity=0.95, bringToFront=TRUE)) |>
     leaflet::addLegend(pal=pal, values=~map_value,
       title=paste0("Età media (anni)<br><small>",
-                   ifelse(by_zona,"per Zona geografica","per Regione"),"</small>"),
+                   ifelse(by_zona,"per Zona","per Regione"),"</small>"),
       position="bottomright",
       labFormat=leaflet::labelFormat(suffix=" anni", digits=1))
 })
@@ -1082,89 +1078,123 @@ renderValueBox({ value_box_metric(fmt_eur(agg_ca(form_data())$spesa_form_per_dip
 Row
 ------------------------------------------------------------------------------
 
-### Giorni formazione per dipendente per Regione
+### Giorni formazione per dipendente
 ```{r}
-leafletOutput("map_form_giorni", height = "420px")
+radioButtons("form_giorni_by", NULL,
+  choices  = c("Per Zona geografica" = "zona", "Per Regione" = "regione"),
+  selected = "zona", inline = TRUE)
+leafletOutput("map_form_giorni", height = "400px")
 
 output$map_form_giorni <- renderLeaflet({
   d <- form_data()
   req(nrow(d) > 0, SIM_GEO_AVAILABLE)
+  by_zona <- (input$form_giorni_by %||% "zona") == "zona"
 
   dati_reg <- d |>
     dplyr::filter(in_fonte_ca, !is.na(.data$regione_bdap)) |>
-    dplyr::group_by(
-      regione_bdap = .data$regione_bdap,
-      regione_dash = .data$regione_dash
-    ) |>
+    dplyr::group_by(regione_bdap = .data$regione_bdap,
+                    regione_dash = .data$regione_dash,
+                    zona_dash    = .data$zona_dash) |>
     dplyr::group_modify(~agg_ca(.x)) |>
     dplyr::ungroup() |>
-    dplyr::mutate(map_value = .data$giorni_form_per_dip) |>
     add_nuts_id()
 
-  map_data <- nuts2_it_ca |>
-    dplyr::left_join(dati_reg, by = "NUTS_ID")
+  if (by_zona) {
+    zona_vals <- dati_reg |>
+      dplyr::filter(!is.na(zona_dash), zona_dash != "Non classificato") |>
+      dplyr::group_by(zona_dash) |>
+      dplyr::summarise(map_value = mean(.data$giorni_form_per_dip, na.rm=TRUE), .groups="drop")
+    dati_reg <- dati_reg |> dplyr::left_join(zona_vals, by="zona_dash")
+  } else {
+    dati_reg <- dati_reg |> dplyr::mutate(map_value = .data$giorni_form_per_dip)
+  }
 
-  pal <- leaflet::colorNumeric("YlGnBu", domain = map_data$map_value, na.color = "#f0f0f0")
+  dati_reg <- dati_reg |> dplyr::filter(!is.na(map_value))
+  req(nrow(dati_reg) > 0)
+  map_data <- nuts2_it_ca |> dplyr::left_join(dati_reg, by="NUTS_ID")
+  pal <- leaflet::colorNumeric("YlGnBu", domain=map_data$map_value, na.color="#e0e0e0")
   map_data <- map_data |>
     dplyr::mutate(
       fill_color = pal(.data$map_value),
       popup_html = paste0(
         "<b>", htmltools::htmlEscape(.data$nome_regione_mappa), "</b>",
-        "<br>Giorni form./dip.: ", ifelse(is.na(.data$map_value), "n.d.", fmt_1(.data$map_value))
+        ifelse(by_zona & !is.na(.data$zona_dash),
+          paste0("<br><i>Zona: ", .data$zona_dash, "</i>"), ""),
+        "<br>Giorni form./dip.: ",
+        ifelse(is.na(.data$map_value),"n.d.",fmt_1(.data$map_value)),
+        "<br>N. PA: ", ifelse(is.na(.data$n_pa),"n.d.",fmt_n(.data$n_pa))
       )
     )
-
   leaflet::leaflet(map_data) |>
     leaflet::addProviderTiles("CartoDB.Positron") |>
-    leaflet::addPolygons(
-      fillColor = ~fill_color, fillOpacity = 0.82, weight = 1, color = "#666666",
-      popup = ~popup_html,
-      highlightOptions = leaflet::highlightOptions(weight=2,color="#333333",fillOpacity=0.9,bringToFront=TRUE)
-    ) |>
-    leaflet::addLegend(pal=pal, values=~map_value, title="Giorni/dip.", position="bottomright")
+    leaflet::addPolygons(fillColor=~fill_color, fillOpacity=0.82,
+      weight=1, color="#888", popup=~popup_html,
+      highlightOptions=leaflet::highlightOptions(
+        weight=2, color="#333", fillOpacity=0.95, bringToFront=TRUE)) |>
+    leaflet::addLegend(pal=pal, values=~map_value,
+      title=paste0("Giorni/dip.<br><small>",
+                   ifelse(by_zona,"per Zona","per Regione"),"</small>"),
+      position="bottomright")
 })
 ```
 
-### Spesa formazione per dipendente per Regione
+### Spesa formazione per dipendente
 ```{r}
-leafletOutput("map_form_spesa", height = "420px")
+radioButtons("form_spesa_by", NULL,
+  choices  = c("Per Zona geografica" = "zona", "Per Regione" = "regione"),
+  selected = "regione", inline = TRUE)
+leafletOutput("map_form_spesa", height = "400px")
 
 output$map_form_spesa <- renderLeaflet({
   d <- form_data()
   req(nrow(d) > 0, SIM_GEO_AVAILABLE)
+  by_zona <- (input$form_spesa_by %||% "regione") == "zona"
 
   dati_reg <- d |>
     dplyr::filter(in_fonte_ca, !is.na(.data$regione_bdap)) |>
-    dplyr::group_by(
-      regione_bdap = .data$regione_bdap,
-      regione_dash = .data$regione_dash
-    ) |>
+    dplyr::group_by(regione_bdap = .data$regione_bdap,
+                    regione_dash = .data$regione_dash,
+                    zona_dash    = .data$zona_dash) |>
     dplyr::group_modify(~agg_ca(.x)) |>
     dplyr::ungroup() |>
-    dplyr::mutate(map_value = .data$spesa_form_per_dip) |>
     add_nuts_id()
 
-  map_data <- nuts2_it_ca |>
-    dplyr::left_join(dati_reg, by = "NUTS_ID")
+  if (by_zona) {
+    zona_vals <- dati_reg |>
+      dplyr::filter(!is.na(zona_dash), zona_dash != "Non classificato") |>
+      dplyr::group_by(zona_dash) |>
+      dplyr::summarise(map_value = mean(.data$spesa_form_per_dip, na.rm=TRUE), .groups="drop")
+    dati_reg <- dati_reg |> dplyr::left_join(zona_vals, by="zona_dash")
+  } else {
+    dati_reg <- dati_reg |> dplyr::mutate(map_value = .data$spesa_form_per_dip)
+  }
 
-  pal <- leaflet::colorNumeric("YlOrRd", domain = map_data$map_value, na.color = "#f0f0f0")
+  dati_reg <- dati_reg |> dplyr::filter(!is.na(map_value))
+  req(nrow(dati_reg) > 0)
+  map_data <- nuts2_it_ca |> dplyr::left_join(dati_reg, by="NUTS_ID")
+  pal <- leaflet::colorNumeric("YlOrRd", domain=map_data$map_value, na.color="#e0e0e0")
   map_data <- map_data |>
     dplyr::mutate(
       fill_color = pal(.data$map_value),
       popup_html = paste0(
         "<b>", htmltools::htmlEscape(.data$nome_regione_mappa), "</b>",
-        "<br>Spesa form./dip.: ", ifelse(is.na(.data$map_value), "n.d.", fmt_eur(.data$map_value))
+        ifelse(by_zona & !is.na(.data$zona_dash),
+          paste0("<br><i>Zona: ", .data$zona_dash, "</i>"), ""),
+        "<br>Spesa form./dip.: ",
+        ifelse(is.na(.data$map_value),"n.d.",fmt_eur(.data$map_value)),
+        "<br>N. PA: ", ifelse(is.na(.data$n_pa),"n.d.",fmt_n(.data$n_pa))
       )
     )
-
   leaflet::leaflet(map_data) |>
     leaflet::addProviderTiles("CartoDB.Positron") |>
-    leaflet::addPolygons(
-      fillColor = ~fill_color, fillOpacity = 0.82, weight = 1, color = "#666666",
-      popup = ~popup_html,
-      highlightOptions = leaflet::highlightOptions(weight=2,color="#333333",fillOpacity=0.9,bringToFront=TRUE)
-    ) |>
-    leaflet::addLegend(pal=pal, values=~map_value, title="€/dip.", position="bottomright")
+    leaflet::addPolygons(fillColor=~fill_color, fillOpacity=0.82,
+      weight=1, color="#888", popup=~popup_html,
+      highlightOptions=leaflet::highlightOptions(
+        weight=2, color="#333", fillOpacity=0.95, bringToFront=TRUE)) |>
+    leaflet::addLegend(pal=pal, values=~map_value,
+      title=paste0("€/dip.<br><small>",
+                   ifelse(by_zona,"per Zona","per Regione"),"</small>"),
+      position="bottomright")
 })
 ```
 
@@ -1365,7 +1395,7 @@ agg_data <- make_ca_reactive("agg", include_anno = TRUE, ca_only = TRUE)
 register_reset_ca("agg", include_anno = TRUE)
 ```
 
-Row {data-height=620}
+Row
 ------------------------------------------------------------------------------
 
 ### Indicatori chiave — tabella aggregata
@@ -1406,8 +1436,7 @@ renderDT({
 
   datatable(
     out, rownames = FALSE, filter = "top",
-    options = list(pageLength = 25, language = dt_lang, scrollX = TRUE,
-                   scrollY = "450px", scroller = TRUE,
+    options = list(pageLength = 20, language = dt_lang, scrollX = TRUE,
                    columnDefs = list(list(className="dt-center", targets="_all")))
   ) |>
     formatRound(columns = "Personale", digits = 0, mark = ".") |>

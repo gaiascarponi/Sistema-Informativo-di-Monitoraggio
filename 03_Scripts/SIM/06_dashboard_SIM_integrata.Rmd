@@ -194,7 +194,7 @@ cat("<style>
 </style>")
 ```
 
-Overview {data-icon="fa-building"}
+Overview Perimetro PA {data-icon="fa-building"}
 =======================================================================
 
 Sidebar {.sidebar}
@@ -322,45 +322,85 @@ renderValueBox({
 })
 ```
 
-### Regioni rappresentate {.value-box}
+<!-- ### Regioni rappresentate {.value-box} -->
 
-```{r}
-renderValueBox({
-  n <- overview_data() |>
-    filter(!is.na(regione), regione != "", regione != "Non disponibile") |>
-    summarise(n = n_distinct(regione)) |>
-    pull(n)
+<!-- ```{r} -->
+<!-- renderValueBox({ -->
+<!--   n <- overview_data() |> -->
+<!--     filter(!is.na(regione), regione != "", regione != "Non disponibile") |> -->
+<!--     summarise(n = n_distinct(regione)) |> -->
+<!--     pull(n) -->
 
-  valueBox(fmt_num(n), caption = "Regioni con almeno un ente", icon = "fa-map", color = "info")
-})
-```
+<!--   valueBox(fmt_num(n), caption = "Regioni con almeno un ente", icon = "fa-map", color = "info") -->
+<!-- }) -->
+<!-- ``` -->
 
-### Enti nel perimetro S13 {.value-box}
+### Enti presenti nel perimetro S13 {.value-box}
 
 ```{r}
 renderValueBox({
   data <- overview_data()
+
   n <- sum(data$presente_s13, na.rm = TRUE)
-  quota <- if (nrow(data) > 0L) 100 * n / nrow(data) else 0
-  valueBox(fmt_num(n), caption = fmt_pct(quota), icon = "fa-landmark", color = "success")
+
+  quota <- if (nrow(data) > 0L) {
+    100 * n / nrow(data)
+  } else {
+    0
+  }
+
+ valueBox(
+  value = fmt_num(n),
+  caption = HTML(
+    paste0(
+      "Enti S13 nel perimetro selezionato",
+      "<br>",
+      fmt_pct(quota),
+      " degli enti del perimetro"
+    )
+  ),
+  icon = "fa-landmark",
+  color = "success"
+)
 })
 ```
+
 
 ### Enti presenti in BDAP {.value-box}
 
 ```{r}
 renderValueBox({
   data <- overview_data()
+
   n <- sum(data$presente_bdap, na.rm = TRUE)
-  quota <- if (nrow(data) > 0L) 100 * n / nrow(data) else 0
-  valueBox(fmt_num(n), caption = fmt_pct(quota), icon = "fa-database", color = "warning")
+
+  quota <- if (nrow(data) > 0L) {
+    100 * n / nrow(data)
+  } else {
+    0
+  }
+
+  valueBox(
+  value = fmt_num(n),
+  caption = HTML(
+    paste0(
+      "Enti BDAP nel perimetro selezionato",
+      "<br>",
+      fmt_pct(quota),
+      " degli enti del perimetro"
+    )
+  ),
+  icon = "fa-database",
+  color = "warning"
+)
 })
 ```
 
-Row {data-height=550}
+
+Row {data-height=650}
 -----------------------------------------------------------------------
 
-### Distribuzione regionale
+### Distribuzione regionale {data-width=30}
 
 ```{r}
 leafletOutput("overview_mappa", height = "500px")
@@ -416,47 +456,141 @@ output$overview_mappa <- renderLeaflet({
 })
 ```
 
-### Composizione per forma giuridica
+### Enti del perimetro selezionato {data-width=70}
+
+```{r tabella-overview}
+renderDT({
+  dati_tabella <- overview_data() |>
+    transmute(
+      `Nome ente` = nome_ente,
+      `Codice fiscale` = codice_fiscale,
+      `Codice IPA` = codice_ipa,
+      Regione = regione,
+      Provincia = provincia,
+      Comune = comune,
+      `Forma giuridica` = forma_giuridica,
+      `Codice ATECO` = codice_ateco,
+      `Descrizione ATECO` = ateco,
+      MPA = presente_mpa,
+      S13 = presente_s13,
+      BDAP = presente_bdap
+    )
+
+  datatable(
+    dati_tabella,
+    rownames = FALSE,
+    filter = "top",
+    extensions = c("Buttons", "Scroller"),
+    options = list(
+      dom = "Bfrtip",
+      buttons = list(
+        list(
+          extend = "csv",
+          text = "Scarica CSV",
+          filename = "enti_perimetro_SIM"
+        ),
+        list(
+          extend = "excel",
+          text = "Scarica Excel",
+          filename = "enti_perimetro_SIM"
+        )
+      ),
+      pageLength = 15,
+      scrollX = TRUE,
+      scrollY = "430px",
+      scroller = TRUE,
+      deferRender = TRUE,
+      autoWidth = TRUE
+    ),
+    class = "display compact stripe"
+  )
+})
+```
+
+Row {data-height=700}
+-------------------------------------
+
+### Composizione per forma giuridica  {data-width=50}
 
 ```{r}
 renderPlotly({
   tab <- overview_data() |>
+    filter(
+      !is.na(forma_giuridica),
+      forma_giuridica != ""
+    ) |>
     count(forma_giuridica, sort = TRUE) |>
-    slice_head(n = 15)
+    slice_head(n = 12) |>
+    mutate(
+      forma_label = stringr::str_wrap(
+        forma_giuridica,
+        width = 38
+      )
+    )
 
   plot_ly(
     tab,
     x = ~n,
-    y = ~reorder(forma_giuridica, n),
+    y = ~reorder(forma_label, n),
     type = "bar",
     orientation = "h",
+    hovertext = ~paste0(
+      "<b>", forma_giuridica, "</b>",
+      "<br>Numero di enti: ", fmt_num(n)
+    ),
     hoverinfo = "text",
-    text = ~paste0(forma_giuridica, "<br>Enti: ", fmt_num(n))
+    textposition = "none"
   ) |>
     layout(
-      xaxis = list(title = "Numero di enti"),
-      yaxis = list(title = ""),
-      margin = list(l = 280)
+      xaxis = list(
+        title = "Numero di enti",
+        rangemode = "tozero",
+        separatethousands = TRUE
+      ),
+      yaxis = list(
+        title = "",
+        automargin = TRUE,
+        tickfont = list(size = 11)
+      ),
+      margin = list(
+        l = 250,
+        r = 30,
+        t = 20,
+        b = 60
+      ),
+      showlegend = FALSE
     ) |>
-    config(displayModeBar = FALSE)
+    config(
+      displayModeBar = FALSE,
+      responsive = TRUE
+    )
 })
 ```
 
-Row {data-height=500}
------------------------------------------------------------------------
-
-### Principali attività ATECO
+### Principali attività ATECO  {data-width=50}
 
 ```{r}
 renderPlotly({
   tab <- overview_data() |>
-    mutate(ateco_label = if_else(
-      is.na(codice_ateco) | codice_ateco == "",
-      ateco,
-      paste0(codice_ateco, " — ", ateco)
-    )) |>
-    count(ateco_label, sort = TRUE) |>
-    slice_head(n = 15)
+    mutate(
+      ateco_label_completo = case_when(
+        is.na(codice_ateco) | codice_ateco == "" ~ ateco,
+        is.na(ateco) | ateco == "" ~ codice_ateco,
+        TRUE ~ paste0(codice_ateco, " — ", ateco)
+      )
+    ) |>
+    filter(
+      !is.na(ateco_label_completo),
+      ateco_label_completo != ""
+    ) |>
+    count(ateco_label_completo, sort = TRUE) |>
+    slice_head(n = 12) |>
+    mutate(
+      ateco_label = stringr::str_wrap(
+        ateco_label_completo,
+        width = 46
+      )
+    )
 
   plot_ly(
     tab,
@@ -464,18 +598,40 @@ renderPlotly({
     y = ~reorder(ateco_label, n),
     type = "bar",
     orientation = "h",
+    hovertext = ~paste0(
+      "<b>", ateco_label_completo, "</b>",
+      "<br>Numero di enti: ", fmt_num(n)
+    ),
     hoverinfo = "text",
-    text = ~paste0(ateco_label, "<br>Enti: ", fmt_num(n))
+    textposition = "none"
   ) |>
     layout(
-      xaxis = list(title = "Numero di enti"),
-      yaxis = list(title = ""),
-      margin = list(l = 330)
+      xaxis = list(
+        title = "Numero di enti",
+        rangemode = "tozero",
+        separatethousands = TRUE
+      ),
+      yaxis = list(
+        title = "",
+        automargin = TRUE,
+        tickfont = list(size = 10)
+      ),
+      margin = list(
+        l = 340,
+        r = 30,
+        t = 20,
+        b = 60
+      ),
+      showlegend = FALSE
     ) |>
-    config(displayModeBar = FALSE)
+    config(
+      displayModeBar = FALSE,
+      responsive = TRUE
+    )
 })
 ```
 
+Row {data-height=620}
 ### Sovrapposizione dei perimetri
 
 ```{r}
@@ -509,30 +665,30 @@ renderPlotly({
 })
 ```
 
-Perimetro PA {data-icon="fa-table"}
-=======================================================================
+<!-- Perimetro PA {data-icon="fa-table"} -->
+<!-- ======================================================================= -->
 
-Column
------------------------------------------------------------------------
+<!-- Column -->
+<!-- ----------------------------------------------------------------------- -->
 
-### Enti della lista filtrata
+<!-- ### Enti della lista filtrata -->
 
-```{r}
-renderDT({
-  overview_data() |>
-    select(
-      nome_ente, codice_fiscale, codice_ipa,
-      regione, provincia, comune,
-      forma_giuridica, codice_ateco, ateco,
-      presente_mpa, presente_s13, presente_bdap
-    ) |>
-    datatable(
-      rownames = FALSE,
-      filter = "top",
-      options = list(pageLength = 25, scrollX = TRUE)
-    )
-})
-```
+<!-- ```{r} -->
+<!-- renderDT({ -->
+<!--   overview_data() |> -->
+<!--     select( -->
+<!--       nome_ente, codice_fiscale, codice_ipa, -->
+<!--       regione, provincia, comune, -->
+<!--       forma_giuridica, codice_ateco, ateco, -->
+<!--       presente_mpa, presente_s13, presente_bdap -->
+<!--     ) |> -->
+<!--     datatable( -->
+<!--       rownames = FALSE, -->
+<!--       filter = "top", -->
+<!--       options = list(pageLength = 25, scrollX = TRUE) -->
+<!--     ) -->
+<!-- }) -->
+<!-- ``` -->
 
 Fonti {data-icon="fa-database"}
 =======================================================================

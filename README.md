@@ -1,3 +1,34 @@
+---
+title: null
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    self_contained: true
+  pdf_document:
+    toc: true
+    number_sections: true
+    latex_engine: xelatex
+    includes:
+      in_header: header.tex
+lang: it
+---
+
+```{=html}
+<div style="margin-top:50px;">
+
+  <div style="text-align:center; margin-bottom:35px;">
+    <img
+      src="logo-mipa.jpeg"
+      style="width:230px;"
+    >
+  </div>
+
+</div>
+```
+
+
 # Monitoraggio-PNRR
 
 Repository pubblica del progetto **Sistema Integrato di Monitoraggio PA (SIM)**.
@@ -9,7 +40,7 @@ Il codice necessario per eseguire la dashboard si trova principalmente nella car
 Chi non ha ancora scaricato e configurato il progetto deve seguire:
 
 ```text
-docs/PRIMA_INSTALLAZIONE_DASHBOARD_SIM.md
+03_Scripts/docs/PRIMA_INSTALLAZIONE_DASHBOARD_SIM.md
 ```
 
 La guida spiega come installare R, RStudio e Git, clonare la repository pubblica, installare i pacchetti R e avviare la dashboard per la prima volta.

@@ -73,7 +73,6 @@ scarica_e_converti <- function(id) {
       f_url <- file_da_scaricare$url[i]
       f_format <- tolower(file_da_scaricare$format[i])
       
-      # Prepariamo il nome pulito (stile 10 giugno)
       nome_pulito <- file_da_scaricare$name[i] %>% 
         str_remove_all("(?i)[\\s_-]+CSV") %>% 
         str_remove_all("(?i)\\.xlsx$|\\.csv$") %>% 
@@ -92,7 +91,7 @@ scarica_e_converti <- function(id) {
           read_csv2(dest_temporaneo, show_col_types = FALSE)
         })
         write_xlsx(df, dest_finale)
-        unlink(dest_temporaneo) # Eliminiamo il CSV temporaneo
+        unlink(dest_temporaneo) 
       } else {
         file.rename(dest_temporaneo, dest_finale)
       }

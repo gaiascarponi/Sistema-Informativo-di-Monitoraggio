@@ -29,9 +29,7 @@ suppressPackageStartupMessages({
   library(ggplot2)
 })
 
-# ------------------------------------------------------------------ #
-# 1. CARICAMENTO E PREPARAZIONE DATI
-# ------------------------------------------------------------------ #
+# caricamento e preparazione dati
 
 df_anac_raw <- fromJSON(params$file_indicators_anac) %>%
   mutate(ind_val = as.numeric(ind_val))
@@ -193,12 +191,21 @@ Sidebar {.sidebar}
 ```{r}
 selectInput("anno_ov", "Anno:",
             choices = sort(unique(df_anac_nat$fil_val), decreasing = TRUE))
+
+helpText(
+  HTML(
+    "<div style='font-size: 12px; color: #666; line-height: 1.5;'>",
+    "<strong>Fonte:</strong> ANAC<br>",
+    "<strong>Annualità:</strong> 2023",
+    "</div>"
+  )
+)
 ```
 
 Row
 -----------------------------------------------------------------------
 
-### PA Matchate (n) {.value-box}
+### Enti ANAC nel perimetro MPA (n) {.value-box}
 
 ```{r}
 renderValueBox({
@@ -208,7 +215,7 @@ renderValueBox({
 })
 ```
 
-### PA Matchate (%) {.value-box}
+### Copertura (%) {.value-box}
 
 ```{r}
 renderValueBox({
@@ -218,48 +225,50 @@ renderValueBox({
 })
 ```
 
-### Numero totale Gare {.value-box}
+### Importo di lotto medio {.value-box}
 
 ```{r}
 renderValueBox({
-  val <- df_anac_nat %>% filter(ind == "ind3", fil_val == input$anno_ov) %>% pull(val_nazionale)
+  val <- df_anac_nat %>% filter(ind == "ind5", fil_val == input$anno_ov) %>% pull(val_nazionale)
   val <- if (length(val) == 0) 0 else val[1]
-  valueBox(format(val, big.mark = ".", decimal.mark = ","), icon = "fa-folder-open", color = "primary")
+  valueBox(paste0("€ ", format(val, big.mark = ".", decimal.mark = ",", nsmall = 2)), icon = "fa-euro-sign", color = "primary")
 })
 ```
 
 Row
 -----------------------------------------------------------------------
 
-### Gare Aggiudicate (n) {.value-box}
+### Numero totale di gare {.value-box}
+
+```{r}
+renderValueBox({
+  val <- df_anac_nat %>% filter(ind == "ind3", fil_val == input$anno_ov) %>% pull(val_nazionale)
+  val <- if (length(val) == 0) 0 else val[1]
+  valueBox(format(val, big.mark = ".", decimal.mark = ","), icon = "fa-folder-open", color = "success")
+})
+```
+
+### Numero totale di gare aggiudicate (n) {.value-box}
 
 ```{r}
 renderValueBox({
   val <- df_anac_nat %>% filter(ind == "ind4", fil_val == input$anno_ov) %>% pull(val_nazionale)
   val <- if (length(val) == 0) 0 else val[1]
-  valueBox(format(val, big.mark = ".", decimal.mark = ","), icon = "fa-check-circle", color = "success")
+  valueBox(format(val, big.mark = ".", decimal.mark = ","), icon = "fa-database", color = "success")
 })
 ```
 
-### Gare Aggiudicate (%) {.value-box}
+### Gare aggiudicate (%) {.value-box}
 
 ```{r}
 renderValueBox({
   val <- df_anac_nat %>% filter(ind == "ind9", fil_val == input$anno_ov) %>% pull(val_nazionale)
   val <- if (length(val) == 0) 0 else val[1]
-  valueBox(paste0(format(val, decimal.mark = ",", nsmall = 2), "%"), icon = "fa-chart-pie", color = "success")
+  valueBox(paste0(format(val, decimal.mark = ",", nsmall = 2), "%"), icon = "fa-check", color = "success")
 })
 ```
 
-### Importo di Lotto Medio {.value-box}
 
-```{r}
-renderValueBox({
-  val <- df_anac_nat %>% filter(ind == "ind5", fil_val == input$anno_ov) %>% pull(val_nazionale)
-  val <- if (length(val) == 0) 0 else val[1]
-  valueBox(paste0("€ ", format(val, big.mark = ".", decimal.mark = ",", nsmall = 2)), icon = "fa-euro-sign", color = "success")
-})
-```
 
 Row
 -----------------------------------------------------------------------
@@ -270,7 +279,7 @@ Row
 renderValueBox({
   val <- df_anac_nat %>% filter(ind == "ind6", fil_val == input$anno_ov) %>% pull(val_nazionale)
   val <- if (length(val) == 0) 0 else val[1]
-  valueBox(paste0(format(val, decimal.mark = ",", nsmall = 2), " gg"), icon = "fa-calculator", color = "warning")
+  valueBox(paste0(format(val, decimal.mark = ",", nsmall = 2), " gg"), icon = "fa-hourglass-half", color = "warning")
 })
 ```
 
@@ -284,7 +293,7 @@ renderValueBox({
 })
 ```
 
-### Tempo medio finestra part. {.value-box}
+### Tempo medio finestra partecipazione {.value-box}
 
 ```{r}
 renderValueBox({
@@ -297,39 +306,95 @@ renderValueBox({
 Row {data-height=400}
 -----------------------------------------------------------------------
 
-### Top 5 Settori per Valore Economico (€)
+### Top 5 settori per valore economico (€)
 
 ```{r}
 renderPlotly({
   req(input$anno_ov)
+  
+  format_ita <- function(x) {
+    sapply(x, function(v) {
+      if (is.na(v) || v == 0) return("0")
+      abs_v <- abs(v)
+      if (abs_v >= 1e9) {
+        paste0(round(v / 1e9, 1), " Mld")
+      } else if (abs_v >= 1e6) {
+        paste0(round(v / 1e6, 1), " Mil")
+      } else if (abs_v >= 1e3) {
+        paste0(round(v / 1e3, 1), " K")
+      } else {
+        as.character(round(v, 0))
+      }
+    })
+  }
+  
   top <- df_cpv_raw %>%
     filter(ind == "ind7", fil == "fil_anno", fil_val == input$anno_ov) %>%
     group_by(cpv) %>%
     summarise(v = sum(ind_val, na.rm = TRUE)) %>%
     arrange(desc(v)) %>%
     head(5)
+  top$cpv <- stringr::str_wrap(top$cpv, width = 30)
+  
   p <- ggplot(top, aes(x = reorder(cpv, v), y = v)) +
-    geom_col(fill = "#27ae60") + coord_flip() + theme_minimal() +
-    labs(x = NULL, y = "Importo Totale (€)")
-  ggplotly(p) %>% layout(margin = list(l = 150))
+    geom_col(fill = "#b5a4d4") + 
+    coord_flip() + 
+    theme_minimal() +
+    scale_y_continuous(
+      labels = format_ita,
+      expand = expansion(mult = c(0, 0.05))
+    ) +
+    labs(x = NULL, y = "Importo totale")
+  
+  ggplotly(p) %>% 
+    layout(
+      margin = list(l = 150),
+      yaxis = list(tickformat = ",.0f")
+    )
 })
 ```
 
-### Top 5 Settori per Volume di Gare (n.)
+### Top 5 settori per volume di gara (n)
 
 ```{r}
 renderPlotly({
   req(input$anno_ov)
+  format_ita <- function(x) {
+    sapply(x, function(v) {
+      if (is.na(v) || v == 0) return("0")
+      abs_v <- abs(v)
+      if (abs_v >= 1e9) {
+        paste0(round(v / 1e9, 1), " Mld")
+      } else if (abs_v >= 1e6) {
+        paste0(round(v / 1e6, 1), " Mil")
+      } else if (abs_v >= 1e3) {
+        paste0(round(v / 1e3, 1), " K")
+      } else {
+        as.character(round(v, 0))
+      }
+    })
+  }
+  
   top <- df_cpv_raw %>%
     filter(ind == "ind1", fil == "fil_anno", fil_val == input$anno_ov) %>%
     group_by(cpv) %>%
     summarise(v = sum(ind_val, na.rm = TRUE)) %>%
     arrange(desc(v)) %>%
     head(5)
+  top$cpv <- stringr::str_wrap(top$cpv, width = 30)
+  
   p <- ggplot(top, aes(x = reorder(cpv, v), y = v)) +
-    geom_col(fill = "#2980b9") + coord_flip() + theme_minimal() +
+    geom_col(fill = "#b5a4d4") + 
+    coord_flip() + 
+    theme_minimal() +
+    scale_y_continuous(
+      labels = format_ita,
+      expand = expansion(mult = c(0, 0.05))
+    ) +
     labs(x = NULL, y = "Numero totale Gare")
-  ggplotly(p) %>% layout(margin = list(l = 150))
+  
+  ggplotly(p) %>% 
+    layout(margin = list(l = 150))
 })
 ```
 
@@ -373,41 +438,18 @@ conditionalPanel(
   condition = "['ind21','ind22','ind25','ind26','ind27','ind29','ind30','ind31'].includes(input.ind_reg)",
   selectInput("mese_reg", "Mese:", choices = sprintf("%02d", 1:12))
 )
+
+helpText(
+  HTML(
+    "<div style='font-size: 12px; color: #666; line-height: 1.5;'>",
+    "<strong>Fonte:</strong> ANAC<br>",
+    "<strong>Annualità:</strong> 2023",
+    "</div>"
+  )
+)
 ```
 
 Row
------------------------------------------------------------------------
-
-### Confronto tra tutte le Regioni
-
-```{r}
-renderDT({
-  req(input$anno_reg)
-  tab <- df_anac_reg %>%
-    filter(fil_val == input$anno_reg, is.na(sub_fil_val),
-           ind %in% c("ind10", "ind11", "ind14", "ind15", "ind16", "ind18", "ind19", "ind20")) %>%
-    select(regione_bdap, ind, ind_val) %>%
-    pivot_wider(names_from = ind, values_from = ind_val) %>%
-    arrange(desc(ind15))
-
-  datatable(
-    tab,
-    rownames = FALSE,
-    colnames = c(
-      "Regione" = "regione_bdap", "N. Gare" = "ind10", "Aggiudicate (n)" = "ind11",
-      "Aggiudicazione (%)" = "ind14", "Importo Totale (€)" = "ind15",
-      "Importo Medio (€)" = "ind16", "Durata Prevista (gg)" = "ind18",
-      "Scadenza-Esito (gg)" = "ind19", "Finestra Partecip. (gg)" = "ind20"
-    ),
-    filter = "top",
-    options = list(pageLength = 21, order = list(list(4, "desc")))
-  ) %>%
-    formatRound(c("Importo Totale (€)", "Importo Medio (€)"), 0) %>%
-    formatRound(c("Aggiudicazione (%)", "Durata Prevista (gg)", "Scadenza-Esito (gg)", "Finestra Partecip. (gg)"), 1)
-})
-```
-
-Row {data-height=650}
 -----------------------------------------------------------------------
 
 ### Mappa Distribuzione
@@ -453,13 +495,58 @@ renderPlotly({
   res_reg <- res_reg %>% arrange(desc(ind_val))
   etichetta_ind <- unname(nomi_indicatori_reg[input$ind_reg])
   p <- ggplot(res_reg, aes(x = reorder(regione_bdap, ind_val), y = ind_val)) +
-    geom_col(fill = "#007bff") + coord_flip() + theme_minimal() +
+    geom_col(fill = "#5DADE2") + coord_flip() + theme_minimal() +
     labs(x = NULL, y = etichetta_ind)
   ggplotly(p) %>% layout(margin = list(l = 150))
 })
 ```
 
-Confronto Forme Giuridiche {data-icon="fa-balance-scale"}
+
+Row {data-height=650}
+-----------------------------------------------------------------------
+
+### Confronto tra tutte le Regioni
+
+```{r}
+renderDT({
+  req(input$anno_reg)
+  tab <- df_anac_reg %>%
+    filter(fil_val == input$anno_reg, is.na(sub_fil_val),
+           ind %in% c("ind10", "ind11", "ind14", "ind15", "ind16", "ind18", "ind19", "ind20")) %>%
+    select(regione_bdap, ind, ind_val) %>%
+    pivot_wider(names_from = ind, values_from = ind_val) %>%
+    arrange(desc(ind15))
+
+  datatable(
+    tab,
+    rownames = FALSE,
+    colnames = c(
+      "Regione" = "regione_bdap", "N. Gare" = "ind10", "Aggiudicate (n)" = "ind11",
+      "Aggiudicazione (%)" = "ind14", "Importo Totale (€)" = "ind15",
+      "Importo Medio (€)" = "ind16", "Durata Prevista (gg)" = "ind18",
+      "Scadenza-Esito (gg)" = "ind19", "Finestra Partecip. (gg)" = "ind20"
+    ),
+    filter = "top",
+    extensions = c("Buttons"),           # ← aggiungi extension
+    options = list(
+      pageLength = 21,
+      order = list(list(4, "desc")),
+      dom = 'Bfrtip',                     # ← B = Buttons
+      buttons = list(
+        list(extend = 'excel', text = 'Excel', filename = 'ANAC_Distribuzione_Regionale'),
+        list(extend = 'csv', text = 'CSV', filename = 'ANAC_Distribuzione_Regionale'),
+        list(extend = 'pdf', text = 'PDF', filename = 'ANAC_Distribuzione_Regionale'),
+        list(extend = 'print', text = 'Stampa')
+      )
+    )
+  ) %>%
+    formatRound(c("Importo Totale (€)", "Importo Medio (€)"), 0) %>%
+    formatRound(c("Aggiudicazione (%)", "Durata Prevista (gg)", "Scadenza-Esito (gg)", "Finestra Partecip. (gg)"), 1)
+})
+```
+
+
+Confronto tra Forme Giuridiche {data-icon="fa-balance-scale"}
 =======================================================================
 
 Sidebar {.sidebar}
@@ -473,9 +560,44 @@ selectInput("anno_fg", "Anno:",
 
 selectInput("metrica_fg", "Metrica da confrontare:",
             choices = setNames(names(nomi_indicatori_fg), nomi_indicatori_fg))
+
+helpText(
+  HTML(
+    "<div style='font-size: 12px; color: #666; line-height: 1.5;'>",
+    "<strong>Fonte:</strong> ANAC<br>",
+    "<strong>Annualità:</strong> 2023",
+    "</div>"
+  )
+)
 ```
 
 Row
+-----------------------------------------------------------------------
+
+### 
+
+```{r}
+renderPlotly({
+  metrica <- input$metrica_fg
+  d <- df_fg_confronto %>%
+    filter(fil_val == input$anno_fg) %>%
+    select(sub_fil_val, valore = all_of(metrica)) %>%
+    filter(!is.na(valore)) %>%
+    arrange(desc(valore))
+
+  titolo <- paste0("Confronto tra Forme Giuridiche — ",
+                   unname(nomi_indicatori_fg[metrica]),
+                   " (Anno ", input$anno_fg, ")")
+
+  p <- ggplot(d, aes(x = reorder(sub_fil_val, valore), y = valore)) +
+    geom_col(fill = "#5DADE2") + coord_flip() + theme_minimal() +
+    labs(title = titolo, x = NULL, y = unname(nomi_indicatori_fg[metrica]))
+  ggplotly(p) %>% layout(margin = list(l = 180))
+})
+```
+
+
+Row {data-height=650}
 -----------------------------------------------------------------------
 
 ### Confronto tra tutte le Forme Giuridiche
@@ -498,39 +620,26 @@ renderDT({
       "Scadenza-Esito (gg)" = "ind41", "Finestra Partecip. (gg)" = "ind42"
     ),
     filter = "top",
-    options = list(pageLength = 15, order = list(list(4, "desc")))
+    extensions = c("Buttons"),
+    options = list(
+      pageLength = 15,
+      order = list(list(4, "desc")),
+      dom = 'Bfrtip',
+      buttons = list(
+        list(extend = 'excel', text = 'Excel', filename = 'ANAC_Confronto_Forme_Giuridiche'),
+        list(extend = 'csv', text = 'CSV', filename = 'ANAC_Confronto_Forme_Giuridiche'),
+        list(extend = 'pdf', text = 'PDF', filename = 'ANAC_Confronto_Forme_Giuridiche'),
+        list(extend = 'print', text = 'Stampa')
+      )
+    )
   ) %>%
     formatRound(c("Importo Totale (€)", "Importo Medio (€)"), 0) %>%
     formatRound(c("Aggiudicazione (%)", "Durata Prevista (gg)", "Scadenza-Esito (gg)", "Finestra Partecip. (gg)"), 1)
 })
 ```
 
-Row {data-height=650}
------------------------------------------------------------------------
 
-### 
-
-```{r}
-renderPlotly({
-  metrica <- input$metrica_fg
-  d <- df_fg_confronto %>%
-    filter(fil_val == input$anno_fg) %>%
-    select(sub_fil_val, valore = all_of(metrica)) %>%
-    filter(!is.na(valore)) %>%
-    arrange(desc(valore))
-
-  titolo <- paste0("Confronto tra Forme Giuridiche — ",
-                   unname(nomi_indicatori_fg[metrica]),
-                   " (Anno ", input$anno_fg, ")")
-
-  p <- ggplot(d, aes(x = reorder(sub_fil_val, valore), y = valore)) +
-    geom_col(fill = "#8e44ad") + coord_flip() + theme_minimal() +
-    labs(title = titolo, x = NULL, y = unname(nomi_indicatori_fg[metrica]))
-  ggplotly(p) %>% layout(margin = list(l = 180))
-})
-```
-
-Analisi Dettaglio Mensile {data-icon="fa-calendar-alt"}
+Analisi di dettaglio mensile {data-icon="fa-calendar-alt"}
 =======================================================================
 
 Sidebar {.sidebar}
@@ -561,6 +670,15 @@ get_det_ind <- function(base_id) {
   target_id <- paste0("ind", base_id + info$offset)
   info$df %>% filter(ind == target_id) %>% pull(ind_val) %>% sum(na.rm = TRUE)
 }
+
+helpText(
+  HTML(
+    "<div style='font-size: 12px; color: #666; line-height: 1.5;'>",
+    "<strong>Fonte:</strong> ANAC<br>",
+    "<strong>Annualità:</strong> 2023",
+    "</div>"
+  )
+)
 ```
 
 Row
@@ -571,7 +689,7 @@ Row
 ```{r}
 renderValueBox({
   valueBox(format(get_det_ind(21), big.mark = ".", decimal.mark = ","),
-           icon = "fa-list-ol", color = "info")
+           icon = "fa-list-ol", color = "primary")
 })
 ```
 
@@ -589,7 +707,7 @@ renderValueBox({
 ```{r}
 renderValueBox({
   valueBox(paste0("€ ", format(get_det_ind(26), big.mark = ".", decimal.mark = ",")),
-           icon = "fa-euro-sign", color = "success")
+           icon = "fa-euro-sign", color = "warning")
 })
 ```
 
@@ -600,22 +718,72 @@ Row {data-height=400}
 
 ```{r}
 renderPlotly({
-  labels <- c("Durata", "Esito", "Finestra")
+  labels <- c("Durata prevista", "Durata scadenza-esito", "Durata finestra di partecipazione")
   vals   <- c(get_det_ind(29), get_det_ind(30), get_det_ind(31))
-  p <- ggplot(data.frame(labels, vals), aes(x = labels, y = vals, fill = labels)) +
-    geom_col() + theme_minimal() + theme(legend.position = "none")
+  
+  df_plot <- data.frame(
+    labels = factor(labels, levels = labels),
+    vals = vals
+  )
+
+  p <- ggplot(df_plot, aes(x = labels, y = vals, fill = labels)) +
+    geom_col(width = 0.6) +
+    scale_fill_manual(
+      values = c(
+        "Durata prevista"   = "#5DADE2",  
+        "Durata scadenza-esito"    = "#8FA85F",  
+        "Durata finestra di partecipazione" = "#F39C12"    
+      )
+    ) +
+    theme_minimal() +
+    theme(
+      legend.position = "none",
+      axis.text.x = element_text(size = 8),
+      axis.text.y = element_text(size = 10)
+    ) +
+    labs(x = NULL, y = "Giorni")
+
   ggplotly(p)
 })
 ```
 
-### Medie Economiche per Ente
+### Medie economiche per Ente
 
 ```{r}
 renderPlotly({
-  labels <- c("Media", "Ponderata")
+  labels <- c("Media importo di lotto", "Media ponderata con durata prevista")
   vals   <- c(get_det_ind(27), get_det_ind(28))
-  p <- ggplot(data.frame(labels, vals), aes(x = labels, y = vals)) +
-    geom_col(fill = "#27ae60") + theme_minimal()
+  
+  df_plot <- data.frame(
+    labels = factor(labels, levels = labels),
+    vals = vals
+  )
+
+  p <- ggplot(df_plot, aes(x = labels, y = vals, fill = labels)) +
+    geom_col(width = 0.6) +
+    scale_fill_manual(
+      values = c(
+        "Media importo di lotto"              = "#5DADE2",   
+        "Media ponderata con durata prevista"   = "#F39C12"    
+      )
+    ) +
+    scale_y_continuous(
+      labels = function(x) {
+        ifelse(x >= 1e9,
+               paste0(format(x/1e9, big.mark=".", decimal.mark=",", digits=2), " miliardi"),
+        ifelse(x >= 1e6,
+               paste0(format(x/1e6, big.mark=".", decimal.mark=",", digits=1), " milioni"),
+               paste0("€ ", format(x, big.mark=".", decimal.mark=","))))
+      }
+    ) +
+    theme_minimal() +
+    theme(
+      legend.position = "none",
+      axis.text.x = element_text(size = 11),
+      axis.text.y = element_text(size = 10)
+    ) +
+    labs(x = NULL, y = "Importo")
+
   ggplotly(p)
 })
 ```
@@ -636,6 +804,15 @@ selectInput("mese_cpv", "3. Mese:",
             choices = c("Tutti i mesi" = "TUTTI", sprintf("%02d", 1:12)))
 selectInput("fg_cpv",   "4. Forma Giuridica:",
             choices = c("Tutte le PA" = "TUTTE", lista_fg_cpv))
+
+helpText(
+  HTML(
+    "<div style='font-size: 12px; color: #666; line-height: 1.5;'>",
+    "<strong>Fonte:</strong> ANAC<br>",
+    "<strong>Annualità:</strong> 2023",
+    "</div>"
+  )
+)
 ```
 
 ```{r}
@@ -668,6 +845,92 @@ dati_cpv <- reactive({
 Row
 -----------------------------------------------------------------------
 
+### Numero di gare nel settore {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(format(dati_cpv()$res$gare, big.mark = ".", decimal.mark = ","),
+           icon = "fa-shopping-cart", color = "primary")
+})
+```
+
+### Gare aggiudicate nel settore (%) {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(paste0(format(dati_cpv()$res$agg_perc, nsmall = 2), "%"),
+           icon = "fa-chart-pie", color = "success")
+})
+```
+
+### Importo di lotto totale nel settore {.value-box}
+
+```{r}
+renderValueBox({
+  valueBox(paste0("€ ", format(dati_cpv()$res$imp_tot, big.mark = ".", decimal.mark = ",")),
+           icon = "fa-euro-sign", color = "warning")
+})
+```
+
+Row
+-----------------------------------------------------------------------
+
+
+### Performance temporale nel settore (gg)
+
+```{r}
+renderPlotly({
+  d <- dati_cpv()$res
+  df_p <- data.frame(
+    Label  = factor(c("Durata prevista", "Durata scadenza-esito", "Durata finestra di partecipazione"), levels = c("Durata prevista", "Durata scadenza-esito", "Durata finestra di partecipazione")),
+    Valore = c(d$durata, d$esito, d$finestra)
+  )
+  
+  p <- ggplot(df_p, aes(x = Label, y = Valore, fill = Label)) +
+    geom_col(width = 0.6) +
+    scale_fill_manual(
+      values = c(
+        "Durata prevista"   = "#5DADE2",  
+        "Durata scadenza-esito"    = "#8FA85F",  
+        "Durata finestra di partecipazione" = "#F39C12"    
+      )
+    ) +
+    theme_minimal() +
+    theme(
+      legend.position = "none",
+      axis.text.x = element_text(size = 8),
+      axis.text.y = element_text(size = 10)
+    ) +
+    labs(x = NULL, y = "Giorni")
+
+  ggplotly(p)
+})
+```
+
+### Rapporto Gare/PA nel Settore
+
+```{r}
+renderPlotly({
+  d <- dati_cpv()$res
+  df_p <- data.frame(
+    Label  = c("Media Gare/PA", "PA"),
+    Valore = c(d$media_gare_pa, d$pa_n)
+  )
+  p <- ggplot(df_p, aes(x = Label, y = Valore)) +
+    geom_col(fill = "#F39C12") +
+    theme_minimal() +
+    theme(
+      axis.ticks.x = element_blank()    
+    ) +
+    labs(x = NULL, y = NULL)             
+
+  ggplotly(p)
+})
+```
+
+
+Row {data-height=400}
+-----------------------------------------------------------------------
 ### Confronto tra tutti i Settori
 
 ```{r}
@@ -707,73 +970,22 @@ renderDT({
       "Importo Totale (€)" = "imp_tot"
     ),
     filter = "top",
-    options = list(pageLength = 15, order = list(list(5, "desc")))
+    extensions = c("Buttons"),
+    options = list(
+      pageLength = 15,
+      order = list(list(5, "desc")),
+      dom = 'Bfrtip',
+      buttons = list(
+        list(extend = 'excel', text = 'Excel', filename = 'ANAC_Confronto_Settori_CPV'),
+        list(extend = 'csv', text = 'CSV', filename = 'ANAC_Confronto_Settori_CPV'),
+        list(extend = 'pdf', text = 'PDF', filename = 'ANAC_Confronto_Settori_CPV'),
+        list(extend = 'print', text = 'Stampa')
+      )
+    )
   ) %>%
     formatRound("Importo Totale (€)", 0) %>%
     formatRound("Aggiudicate (%)", 1)
 })
 ```
 
-Row
------------------------------------------------------------------------
 
-### Gare nel Settore {.value-box}
-
-```{r}
-renderValueBox({
-  valueBox(format(dati_cpv()$res$gare, big.mark = ".", decimal.mark = ","),
-           icon = "fa-shopping-cart", color = "info")
-})
-```
-
-### Aggiudicate (%) {.value-box}
-
-```{r}
-renderValueBox({
-  valueBox(paste0(format(dati_cpv()$res$agg_perc, nsmall = 2), "%"),
-           icon = "fa-chart-pie", color = "info")
-})
-```
-
-### Importo Totale Settore {.value-box}
-
-```{r}
-renderValueBox({
-  valueBox(paste0("€ ", format(dati_cpv()$res$imp_tot, big.mark = ".", decimal.mark = ",")),
-           icon = "fa-euro-sign", color = "info")
-})
-```
-
-Row {data-height=400}
------------------------------------------------------------------------
-
-### Performance Temporale Settore (GG)
-
-```{r}
-renderPlotly({
-  d <- dati_cpv()$res
-  df_p <- data.frame(
-    Label  = c("Durata", "Esito", "Finestra"),
-    Valore = c(d$durata, d$esito, d$finestra)
-  )
-  p <- ggplot(df_p, aes(x = Label, y = Valore, fill = Label)) +
-    geom_col() + scale_fill_brewer(palette = "Set1") +
-    theme_minimal() + theme(legend.position = "none")
-  ggplotly(p)
-})
-```
-
-### Rapporto Gare/PA nel Settore
-
-```{r}
-renderPlotly({
-  d <- dati_cpv()$res
-  df_p <- data.frame(
-    Label  = c("Media Gare/PA", "PA"),
-    Valore = c(d$media_gare_pa, d$pa_n)
-  )
-  p <- ggplot(df_p, aes(x = Label, y = Valore)) +
-    geom_col(fill = "#48dbfb") + theme_minimal()
-  ggplotly(p)
-})
-```

@@ -113,17 +113,15 @@ id_destinazione <- as_id("1-P9OBSKJZr4EFhyXCIQJE39ERBoZmYGh")
 nome_file_output <- "Master.rds"
 path_temp <- file.path("07_Temp", nome_file_output)
 
-# 1. Salvataggio locale in formato RDS
+#Salvataggio locale in formato RDS
 tryCatch({
-  # Usiamo write_rds (pacchetto readr) o saveRDS (base R)
-  # L'oggetto da salvare è 'dataset_unito'
   write_rds(dataset_unito, file = path_temp, compress = "gz")
   message("File RDS creato localmente in 07_Temp")
 }, error = function(e) {
   stop("Errore durante la creazione del file RDS: ", e$message)
 })
 
-# 2. Caricamento su Google Drive
+#Caricamento su Google Drive
 if (file.exists(path_temp)) {
   drive_upload(
     media = path_temp,
@@ -132,7 +130,7 @@ if (file.exists(path_temp)) {
     overwrite = TRUE
   )
   
-  # 3. Pulizia file temporaneo
+#Pulizia file temporaneo
   unlink(path_temp) 
   message("File Master.rds caricato correttamente su Drive")
 } else {
@@ -141,7 +139,6 @@ if (file.exists(path_temp)) {
 
 message("--- FINE ELABORAZIONE: ", Sys.time(), " ---")
 
-# Chiudiamo registrazione del log
 sink(type = "message")
 sink(type = "output")
 close(con)

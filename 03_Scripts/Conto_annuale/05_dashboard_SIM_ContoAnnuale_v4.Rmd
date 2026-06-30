@@ -1211,6 +1211,8 @@ renderPlotly({ plot_bar_region(form_data(), "giorni_form_per_dip", "Giorni / dip
 renderPlotly({ plot_bar_region(form_data(), "spesa_form_per_dip", "Euro / dipendente") })
 ```
 
+<!--
+
 Assenze e carriere
 ==============================================================================
 
@@ -1227,52 +1229,104 @@ Row
 ------------------------------------------------------------------------------
 
 ### Giorni assenza / dipendente {.value-box}
+
 ```{r}
-renderValueBox({ value_box_metric(fmt_1(agg_ca(ass_data())$gg_assenza_per_dip), "Giorni medi di assenza per dipendente", "fa-calendar-minus", col_arancio) })
+renderValueBox({
+  value_box_metric(
+    fmt_1(agg_ca(ass_data())$gg_assenza_per_dip),
+    "Giorni medi di assenza per dipendente",
+    "fa-calendar-minus",
+    col_arancio
+  )
+})
 ```
 
-<!-- ### Giorni malattia / dipendente {.value-box}
+### Giorni malattia / dipendente {.value-box}
+
 COMMENTATO — dato con copertura incompleta (dataset ASSENZE non ancora consolidato)
+
 ```{r}
 # renderValueBox({
 #   v <- agg_ca(ass_data())$gg_malattia_per_dip
-#   lbl <- if (is.na(v)) "Giorni malattia / dip. (dato non disponibile)" else "Giorni malattia / dipendente"
-#   value_box_metric(fmt_1(v), lbl, "fa-notes-medical", col_warn)
+#   lbl <- if (is.na(v))
+#     "Giorni malattia / dip. (dato non disponibile)"
+#   else
+#     "Giorni malattia / dipendente"
+#
+#   value_box_metric(
+#     fmt_1(v),
+#     lbl,
+#     "fa-notes-medical",
+#     col_warn
+#   )
 # })
 ```
--->
 
-<!-- ### Passaggi qualifica {.value-box}
+### Passaggi qualifica {.value-box}
+
 COMMENTATO — copertura parziale (~4.700 PA su 10.000), da ricontrollare
+
 ```{r}
 # renderValueBox({
 #   v <- agg_ca(ass_data())$passaggi_qualifica
-#   lbl <- if (is.na(v) || v == 0) "Passaggi qualifica (dato limitato o n.d.)" else "Passaggi di qualifica"
-#   value_box_metric(fmt_n(v), lbl, "fa-arrow-up-right-dots", col_blu)
+#   lbl <- if (is.na(v) || v == 0)
+#     "Passaggi qualifica (dato limitato o n.d.)"
+#   else
+#     "Passaggi di qualifica"
+#
+#   value_box_metric(
+#     fmt_n(v),
+#     lbl,
+#     "fa-arrow-up-right-dots",
+#     col_blu
+#   )
 # })
 ```
--->
 
-<!-- ### Tasso passaggi {.value-box}
+### Tasso passaggi {.value-box}
+
 COMMENTATO — dipende da Passaggi qualifica (dato limitato)
+
 ```{r}
-# renderValueBox({ value_box_metric(fmt_pct(agg_ca(ass_data())$tasso_passaggi), "Passaggi / personale", "fa-percent", col_neutro) })
+# renderValueBox({
+#   value_box_metric(
+#     fmt_pct(agg_ca(ass_data())$tasso_passaggi),
+#     "Passaggi / personale",
+#     "fa-percent",
+#     col_neutro
+#   )
+# })
 ```
--->
 
 Row
 ------------------------------------------------------------------------------
 
 ### Assenze per dipendente per Regione
+
 ```{r}
-renderPlotly({ plot_bar_region(ass_data(), "gg_assenza_per_dip", "Giorni / dipendente") })
+renderPlotly({
+  plot_bar_region(
+    ass_data(),
+    "gg_assenza_per_dip",
+    "Giorni / dipendente"
+  )
+})
 ```
 
-<!-- ### Passaggi di qualifica per Regione
+### Passaggi di qualifica per Regione
+
 COMMENTATO — dato con copertura limitata
+
 ```{r}
-# renderPlotly({ plot_bar_region(ass_data(), "passaggi_qualifica", "Passaggi") })
+# renderPlotly({
+#   plot_bar_region(
+#     ass_data(),
+#     "passaggi_qualifica",
+#     "Passaggi"
+#   )
+# })
 ```
+
 -->
 
 Trend
@@ -1376,7 +1430,7 @@ renderPlotly({
 ```
 
 
-Viste aggregate
+Vista aggregate
 ==============================================================================
 
 Column {.sidebar data-width=280}
